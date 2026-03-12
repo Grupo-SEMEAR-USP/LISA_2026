@@ -1,0 +1,68 @@
+import cv2
+from fer import FER
+
+detector = FER(mtcnn=False)
+cap = cv2.VideoCapture(0)
+
+# isso aq evita travamento de alguma forma :)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+# inglês -> emoticon
+emoji_map = {
+    'angry': '>:(',
+    'sad': ':(',
+    'happy': ':)'
+}
+
+if not cap.isOpened():
+    print("Não abriu a câmera!")
+    exit()
+
+print("Iniciando loop... (Aguarde a janela abrir)")
+
+while True:
+    ret, frame = cap.read()
+    
+    if not ret:
+        print("Erro: Frame vazio. Tentando novamente...")
+        continue
+
+    small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+    result = detector.detect_emotions(small_frame)
+
+    for face in result:
+        box = face["box"]
+        emotions = face["emotions"]
+        
+        x, y, w, h = [c * 2 for c in box]
+        
+        # procura pelos nomes ORIGINAIS em inglês
+        target_keys = ['angry', 'sad', 'happy']
+        target = {k: emotions[k] for k in target_keys if k in emotions}
+        
+        if target:
+            # pega a emoção dominante em inglês
+            dominant_english = max(target, key=target.get)
+            score = target[dominant_english]
+            
+            # traduz para o Emoticon usando o mapa lá de cima
+            texto_tela = emoji_map[dominant_english]
+
+            color = (0, 255, 0)
+            if dominant_english == 'angry': color = (0, 0, 255)
+            elif dominant_english == 'sad': color = (255, 0, 0)
+
+            cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+            # mostra o texto traduzido
+            cv2.putText(frame, f"{texto_tela} {score:.2f}", (x, y-10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+    cv2.imshow('Detector', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('p'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
