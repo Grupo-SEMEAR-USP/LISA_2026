@@ -13,8 +13,8 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='jplop',
-    maintainer_email='jp.lopes.melo01@gmail.com',
+    maintainer='semear',
+    maintainer_email='o.semear@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     extras_require={
@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             "camera_publisher = lisa_pkg.camera_publisher:main",
-            "detector_gestos = lisa_pkg.detector_gestos:main"
+            "detector_gestos = lisa_pkg.detector_gestos:main",
+            "screen_control_service = lisa_pkg.screen_control_service:main"
         ],
     },
 )

@@ -4,13 +4,14 @@
   <name>lisa_pkg</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="jp.lopes.melo01@gmail.com">jplop</maintainer>
+  <maintainer email="o.semear@gmail.com">semear</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
   <depend>example_interfaces</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>lisa_interfaces</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
