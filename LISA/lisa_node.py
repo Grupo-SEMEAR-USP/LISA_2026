@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-LISA — Nó ROS 2 (Jazzy)
-
 Subscreve : /camera/image_raw   (sensor_msgs/Image)
 Publica   : /lisa/emotion        (std_msgs/String)
             /lisa/emotion_scores (std_msgs/String)  JSON com todos os scores
