@@ -26,7 +26,7 @@ endif()
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/ScreenControl.srv"
+  "srv/DisplayControl.srv"
 )
 
 ament_package()

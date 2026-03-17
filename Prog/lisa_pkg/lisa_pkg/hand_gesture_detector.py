@@ -13,15 +13,15 @@ import numpy as np
 from math import acos, degrees
 
 '''
-Detector de Gestos
+Detector de Gestos de Mão
 
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
 
     Tópico inscrito: /frame
-        - Tipo da mensagem: Image (sensor_msgs)
+        - Tipo da mensagem: sensor_msgs/msg/Image 
 
-    Tópico publicado: /gestos
-        - Tipo da mensagem: String (example_interfaces)
+    Tópico publicado: /hand_gestures
+        - Tipo da mensagem: example_interfaces/msg/String
 
 '''
 
@@ -30,7 +30,7 @@ class DetectorGestosNode(Node):
     def __init__(self):
         super().__init__("detector_gestos")
         self.subscriber_ = self.create_subscription(Image, "frame", self.detect_gesture, 10)
-        self.publisher_ =  self.create_publisher(String, "gestos", 10)
+        self.publisher_ =  self.create_publisher(String, "hand_gestures", 10)
         self.bridge_ = CvBridge()
 
         options = vision.HandLandmarkerOptions(

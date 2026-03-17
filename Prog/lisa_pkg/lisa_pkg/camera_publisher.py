@@ -18,7 +18,7 @@ Publica a imagem da câmera.
         - mostrar_camera: mostra imagem da câmera na tela (padrao=False)
 
     Tópico publicado: /frame
-        - Tipo da mensagem: Image (sensor_msgs)
+        - Tipo da mensagem: sensor_msgs/msg/Image 
 
 '''
 

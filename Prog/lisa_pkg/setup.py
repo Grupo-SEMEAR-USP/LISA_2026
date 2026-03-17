@@ -25,8 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             "camera_publisher = lisa_pkg.camera_publisher:main",
-            "detector_gestos = lisa_pkg.detector_gestos:main",
-            "screen_control_service = lisa_pkg.screen_control_service:main"
+            "hand_gesture_detector = lisa_pkg.hand_gesture_detector:main",
+            "display_control_service = lisa_pkg.display_control_service:main"
         ],
     },
 )
