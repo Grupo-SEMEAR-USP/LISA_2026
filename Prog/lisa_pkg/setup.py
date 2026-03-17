@@ -26,7 +26,8 @@ setup(
         'console_scripts': [
             "camera_publisher = lisa_pkg.camera_publisher:main",
             "hand_gesture_detector = lisa_pkg.hand_gesture_detector:main",
-            "display_control_service = lisa_pkg.display_control_service:main"
+            "display_control_service = lisa_pkg.display_control_service:main",
+            "lisa_control = lisa_pkg.lisa_control:main"
         ],
     },
 )

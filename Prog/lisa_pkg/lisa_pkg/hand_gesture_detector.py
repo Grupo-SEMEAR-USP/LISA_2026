@@ -52,7 +52,7 @@ class DetectorGestosNode(Node):
     def detect_gesture(self, msg):
 
         if self.processing_:
-            self.get_logger().warn("Um frame foi pulado pois outro ainda estava sendo processado.")
+            self.get_logger().warn("Um frame foi descartado pois outro ainda estava sendo processado.")
             return
         
         self.processing_ = True
