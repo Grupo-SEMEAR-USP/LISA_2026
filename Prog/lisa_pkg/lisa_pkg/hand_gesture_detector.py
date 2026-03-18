@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import rclpy
-from rclpy.node import Node
-import cv2
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from example_interfaces.msg import String
+
+import rclpy
+from rclpy.node import Node
+
+import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import vision
 import time
@@ -16,6 +18,7 @@ from math import acos, degrees
 Detector de Gestos de Mão
 
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
+Precisa encontrar o gesto em 10 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/10 do fps da câmera.
 
     Tópico inscrito: /frame
         - Tipo da mensagem: sensor_msgs/msg/Image 
@@ -46,6 +49,9 @@ class DetectorGestosNode(Node):
         self.UP_VECTOR_ = np.array([0,-1])
         self.msg_ = String()
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
+
+        self.hand_gestures_list_ = []   # salva os gestos detectados nessa lista
+        self.min_gestures_confidence_ = 10  # precisa detectar o gesto em 10 frames seguidos para publicar
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
@@ -172,9 +178,20 @@ class DetectorGestosNode(Node):
                 
                 # Publica o resultado
                 if current_hand_gesture is not None:
-                    self.msg_.data = current_hand_gesture
-                    self.publisher_.publish(self.msg_)
-            
+                    # Se o gesto detectado for diferente dos demais da lista, reinicia a contagem
+                    if self.hand_gestures_list_.count(current_hand_gesture) != len(self.hand_gestures_list_):
+                        self.hand_gestures_list_.clear()
+                        
+                    self.hand_gestures_list_.append(current_hand_gesture)
+                    
+                    # Se o gesto foi recebido 'min_gestures_confidence' vezes seguidas, ele é publicado
+                    if len(self.hand_gestures_list_) >= self.min_gestures_confidence_:
+                        hand_gesture_to_publish = self.hand_gestures_list_[0]
+                        self.get_logger().info(f"Gesto detectado: {hand_gesture_to_publish}")
+                        self.msg_.data = hand_gesture_to_publish
+                        self.publisher_.publish(self.msg_)
+                        self.hand_gestures_list_.clear()
+
         except Exception as e:
             self.get_logger().error(f"Erro durante o processamento do frame: {e}")
         finally:  

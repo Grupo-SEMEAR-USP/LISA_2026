@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+
+from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
+from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
+
 import rclpy
 from rclpy.node import Node
 
 import cv2
-from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
-from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
 
 '''
 Camera Publisher
