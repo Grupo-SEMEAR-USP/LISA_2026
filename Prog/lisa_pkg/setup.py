@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'lisa_pkg'
 
@@ -10,6 +12,9 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        # adiciona a pasta models e telas para que os codigos consigam encontrar:
+        (os.path.join('share', package_name, 'models'), glob('models/*')),  
+        (os.path.join('share', package_name, 'telas'), glob('telas/*')),  
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -27,7 +32,8 @@ setup(
             "camera_publisher = lisa_pkg.camera_publisher:main",
             "hand_gesture_detector = lisa_pkg.hand_gesture_detector:main",
             "display_control_service = lisa_pkg.display_control_service:main",
-            "lisa_control = lisa_pkg.lisa_control:main"
+            "lisa_control = lisa_pkg.lisa_control:main",
+            "hand_gesture_detector_v2 = lisa_pkg.hand_gesture_detector_v2:main"
         ],
     },
 )

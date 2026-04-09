@@ -6,6 +6,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from ament_index_python.packages import get_package_share_directory
 
 import os
 import subprocess
@@ -31,7 +32,7 @@ class DisplayControlService(Node):
     def __init__(self):
         super().__init__('display_control_service')
 
-        self.base_path_ = '/home/jplop/Documents/lisa/telas'
+        self.base_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'telas')
         self.env_ = os.environ.copy()
         self.request_gif_process_ = None
         self.background_gif_process_ = None

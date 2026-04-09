@@ -6,6 +6,7 @@ from example_interfaces.msg import String
 
 import rclpy
 from rclpy.node import Node
+from ament_index_python.packages import get_package_share_directory
 
 import cv2
 import mediapipe as mp
@@ -13,6 +14,7 @@ from mediapipe.tasks.python import vision
 import time
 import numpy as np
 from math import acos, degrees
+import os
 
 '''
 Detector de Gestos de Mão
@@ -35,9 +37,10 @@ class DetectorGestosNode(Node):
         self.subscriber_ = self.create_subscription(Image, "frame", self.detect_gesture, 10)
         self.publisher_ =  self.create_publisher(String, "hand_gestures", 10)
         self.bridge_ = CvBridge()
+        self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'hand_landmarker.task')
 
         options = vision.HandLandmarkerOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_path='/home/jplop/ros2_ws_teste/src/lisa_pkg/lisa_pkg/hand_landmarker.task'),
+            base_options=mp.tasks.BaseOptions(model_asset_path=self.model_path_),
             running_mode=vision.RunningMode.VIDEO,
             num_hands = 1,
             min_hand_detection_confidence=0.5,
