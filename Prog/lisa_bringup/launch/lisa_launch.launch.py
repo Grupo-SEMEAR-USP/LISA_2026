@@ -11,7 +11,7 @@ def generate_launch_description():
 
     hand_gesture_detector = Node(
         package="lisa_pkg",
-        executable="hand_gesture_detector_v2"
+        executable="hand_gesture_detector"
     )
 
     display_control_service = Node(

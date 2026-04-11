@@ -34,9 +34,13 @@ class LisaControlNode(Node):
 
         # mapa (dicionário) que associa um gesto a um gif
         self.hand_gesture_request_map_ = {
-            "Thumb_Up" : "love",
-            "Thumb_Down" : "sad",
-            "Victory" : "angry"
+            "heart" : "love",
+            "dislike" : "sad",
+            "one" : "angry",
+            "like" : "happy",
+            "zero" : "star",
+            "two" : "party",
+            "three" : "dizzy"
         }
         
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
