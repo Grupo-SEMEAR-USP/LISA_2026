@@ -18,7 +18,7 @@ def generate_launch_description():
         package="lisa_pkg",
         executable="display_control_service"
     )
-
+    
     lisa_control = Node(
         package="lisa_pkg",
         executable="lisa_control"
