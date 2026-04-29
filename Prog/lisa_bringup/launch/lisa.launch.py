@@ -24,9 +24,15 @@ def generate_launch_description():
         executable="lisa_control"
     )
 
+    voice_commands_detector = Node(
+        package="lisa_pkg",
+        executable="voice_commands_detector"
+    )
+
     ld.add_action(camera_publisher)
     ld.add_action(hand_gesture_detector)
     ld.add_action(display_control_service)
     ld.add_action(lisa_control)
+    ld.add_action(voice_commands_detector)
 
     return ld
