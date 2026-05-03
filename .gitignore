@@ -1,0 +1,24 @@
+# --- PlatformIO & Firmware ---
+.pio/
+.pioenvs/
+.piolibdeps/
+*.elf
+*.bin
+
+# --- VSCode ---
+**/.vscode/*
+!**/.vscode/extensions.json
+!**/.vscode/settings.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# --- Outros arquivos de sistema ---
+.DS_Store
+Thumbs.db
+*.log
