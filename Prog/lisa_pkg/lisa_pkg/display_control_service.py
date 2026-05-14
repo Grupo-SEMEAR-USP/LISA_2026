@@ -143,6 +143,13 @@ class DisplayControlService(Node):
 
     def can_play_gif(self):
         return (time.time() - self.last_request_time_) > self.request_cooldown_
+    
+
+    def destroy_node(self):
+        if self.request_gif_process_: self.request_gif_process_.terminate()
+        if self.background_gif_process_: self.background_gif_process_.terminate()
+        if self.sleeping_gif_process_: self.sleeping_gif_process_.terminate()
+        super().destroy_node()
 
 
 def main():
@@ -154,16 +161,8 @@ def main():
         executor.spin()
     except KeyboardInterrupt:
         pass
-    finally:
-        if node.request_gif_process_: 
-            node.request_gif_process_.terminate()
-        if node.background_gif_process_: 
-            node.background_gif_process_.terminate()
-        if node.sleeping_gif_process_: 
-            node.sleeping_gif_process_.terminate()
-        
+    finally:        
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 

@@ -69,7 +69,6 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 

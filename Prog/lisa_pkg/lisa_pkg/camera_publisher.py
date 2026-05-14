@@ -93,6 +93,11 @@ class CameraPublisherNode(Node):
         cv2.imshow("frame", flipped_frame)
         cv2.waitKey(1)
 
+    def destroy_node(self):
+        self.cap_.release()
+        cv2.destroyAllWindows()
+        super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -102,12 +107,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        if hasattr(node, 'cap_'):
-            node.cap_.release()
-        
-        cv2.destroyAllWindows()
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 

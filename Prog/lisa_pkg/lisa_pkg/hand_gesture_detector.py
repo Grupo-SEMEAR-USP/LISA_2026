@@ -10,6 +10,7 @@ from ament_index_python.packages import get_package_share_directory
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks.python import vision
 import time
 import os
@@ -102,7 +103,6 @@ class DetectorGestosNode(Node):
         self.num_gesture_frames_ = 5 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
         self.current_gesture_ = "none"
         self.last_gesture_ = "none"
-
         self.two_handed_gestures_ = ["heart"]   # gestos que precisam ser detectados em duas mãos ao mesmo tempo (precisam ser simétricos)
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
@@ -216,6 +216,11 @@ class DetectorGestosNode(Node):
             self.processing_ = False
 
 
+    def destroy_node(self):
+        self.detector_.close()
+        super().destroy_node()
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = DetectorGestosNode()
@@ -224,11 +229,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        if hasattr(node, 'detector_'):
-            node.detector_.close()
-
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 
