@@ -5,8 +5,8 @@ Publica   : /lisa/emotion        (std_msgs/String)
             /lisa/emotion_scores (std_msgs/String)  JSON com todos os scores
 
 Teclas na janela:
-  M  — alterna idle / mimetismo
-  Q  — encerra o nó
+  M alterna idle / mimetismo
+  Q encerra o nó
 """
 
 import cv2
@@ -18,7 +18,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from cv_bridge import CvBridge
 
-# ── detectores ──────────────────────────────────────────────
+#detectores
 face_det  = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 smile_det = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_smile.xml")
 eye_det   = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
@@ -27,7 +27,7 @@ COR = (161, 141, 255)
 W, H = 1280, 720
 
 
-# ── helpers de desenho (igual ao standalone) ────────────────
+#helpers de desenho (igual ao standalone)
 def blob(img, cx, cy, rx, ry):
     for i in range(6, 0, -1):
         g = tuple(int(c * 0.11 * i) for c in COR)
@@ -116,7 +116,7 @@ def detectar(gray, face):
     return {k: v/t for k, v in s.items()}
 
 
-# ── Nó ROS 2 ────────────────────────────────────────────────
+#Nó ROS 2
 class LisaNode(Node):
     def __init__(self):
         super().__init__("lisa_node")
