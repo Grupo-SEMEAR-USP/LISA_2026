@@ -19,7 +19,7 @@ Publica a imagem da câmera.
         - frame_h: altura do frame (padrão=240)
         - mostrar_camera: mostra imagem da câmera na tela (padrao=False)
 
-    Tópico publicado: /frame
+    Tópico publicado: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 
 
 '''
@@ -54,7 +54,7 @@ class CameraPublisherNode(Node):
         self.cap_.set(cv2.CAP_PROP_FPS, self.fps_)
         self.bridge_ = CvBridge()
 
-        self.publisher_ =  self.create_publisher(Image, "frame", 10)
+        self.publisher_ =  self.create_publisher(Image, "visao/frame", 10)
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 
@@ -94,7 +94,8 @@ class CameraPublisherNode(Node):
         cv2.waitKey(1)
 
     def destroy_node(self):
-        self.cap_.release()
+        if hasattr(self, "cap_"):
+            self.cap_.release()
         cv2.destroyAllWindows()
         super().destroy_node()
 

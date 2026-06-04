@@ -16,18 +16,19 @@ from unidecode import unidecode
 import threading
 
 '''
-Detector de comandos de voz.
+Utiliza Faster-Whisper para fazer speech-to-text, ou seja, transcrever falas (áudios) em texto.
+Adaptado de: https://github.com/OminousIndustries/Bob
 
-    Tópico publicado: /voice_command
+    Tópico publicado: /audio/frase
         - Tipo da mensagem: std_msgs/msg/String 
 
 '''
 
-class VoiceCommandsDetectorNode(Node):
+class SpeechToText(Node):
 
     def __init__(self):
-        super().__init__("voice_commands_detector")
-        self.publisher_ =  self.create_publisher(String, "voice_command", 10)
+        super().__init__("speech_to_text")
+        self.publisher_ =  self.create_publisher(String, "audio/frase", 10)
 
         # Preferred capture settings 
         self.PREF_SAMPLE_RATE = 16000
@@ -39,7 +40,7 @@ class VoiceCommandsDetectorNode(Node):
         self.MIN_SPEECH_MS = 300
         self.MAX_RECORDING_MS = 15000
         # Models
-        self.WHISPER_MODEL = "small"
+        self.WHISPER_MODEL = "base"
         # Conversation
         self.AUTO_RESTART_DELAY = 1.5
         # Temp file
@@ -55,13 +56,24 @@ class VoiceCommandsDetectorNode(Node):
             download_root=str(Path.home() / ".cache" / "whisper")
         )
 
+        # se True, ativa prints adicionais
+        self.verbose_ = False
+        
+        # palavras/expressões que ativam o modo de escuta
+        self.wake_words_ = ["ei lisa", "oi lisa", "e ai lisa", "hei lisa", "hey lisa"]
+
+        # palavras/expressões chave
+        self.voice_commands_ = ["ativar modo mimica", "ativar modo gestos"]
+
+        # palavras/expressões que o modelo deve reconhecer com mais precisão
+        self.initial_prompt_ = ["Lisa"] + self.wake_words_ + self.voice_commands_
+
         self.stt_thread_ = threading.Thread(target=self.stt_loop, daemon=True)
         self.stt_thread_.start()
 
-        self.wake_words_ = ["ei lisa", "oi lisa", "e ai lisa", "hei lisa", "hey lisa"]
-        self.voice_commands_ = ["ativar modo mimica", "ativar modo gestos"]
-
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
+        self.get_logger().info(f"Para ativar o modo escuta, fale uma das Wake Words: {self.wake_words_}\n")
+
 
 
     def _spawn_pw_cat_record(self, rate, channels, target):
@@ -214,16 +226,14 @@ class VoiceCommandsDetectorNode(Node):
 
             
     def transcribe_audio(self, whisper_model: WhisperModel, audio_path):
-        self.get_logger().info("Transcrevendo...")
+        if self.verbose_: self.get_logger().info("Transcrevendo...")
         try:
-            # palavras/expressões que o modelo deve reconhecer com mais precisão
-            initial_prompt = ["Lisa"] + self.wake_words_ + self.voice_commands_
-            initial_prompt = ", ".join(initial_prompt) # conversão da lista para string
-
+            initial_prompt_str = "Olá Lisa, ei Lisa, ativar modo gestos e ativar modo mímica."
+            
             segments, info = whisper_model.transcribe(
                 str(audio_path),
                 language="pt",
-                initial_prompt=initial_prompt,
+                initial_prompt=initial_prompt_str,
                 beam_size=5,
                 best_of=1,
                 temperature=0.0,
@@ -231,10 +241,25 @@ class VoiceCommandsDetectorNode(Node):
                 vad_parameters=dict(
                     min_silence_duration_ms=500,
                     speech_pad_ms=200
-                )
+                ),
+                # MUDANÇA 2: Evita que alucinações passadas interfiram no áudio atual
+                condition_on_previous_text=False 
             )
-            text = " ".join(seg.text.strip() for seg in segments)
+            
+            valid_texts = []
+            for seg in segments:
+                # MUDANÇA 1: Filtra alucinações baseadas em ruído/silêncio.
+                # Se a chance de ser "não-fala" for menor que 60%, aceitamos o texto.
+                # Você pode ajustar esse limite (0.6 a 0.8) de acordo com o seu microfone.
+                if seg.no_speech_prob < 0.6:
+                    valid_texts.append(seg.text.strip())
+                else:
+                    if self.verbose_: 
+                        self.get_logger().info(f"Alucinação ignorada (no_speech_prob={seg.no_speech_prob:.2f}): {seg.text}")
+            
+            text = " ".join(valid_texts)
             return text.strip() if text else None
+            
         except Exception as e:
             self.get_logger().error(f"Erro: Transcription error: {e}")
             return None
@@ -277,12 +302,10 @@ class VoiceCommandsDetectorNode(Node):
         return (bytes(buf), rate, ch) if buf else (None, None, None)
 
     def stt_loop(self):
-        self.get_logger().info("Iniciando Speech to Text!")
-  
         while rclpy.ok():
             try:
                 # Modo de espera: escuta e transcreve a cada 2 segundos procurando a wake word
-                self.get_logger().info("Esperando Wake Word...")
+                if self.verbose_: self.get_logger().info("Esperando Wake Word...")
                 audio_data, rate, ch = self.record_fixed_seconds(seconds=2)
                 if audio_data:
                     self.save_wav(audio_data, self.TEMP_WAV, rate, ch)
@@ -290,8 +313,8 @@ class VoiceCommandsDetectorNode(Node):
                     if text_detected:
                         processed_text = unidecode(text_detected.lower()).replace(",","").replace("!","").replace("?","").replace("liza","lisa")
     
-                        self.get_logger().info(f"Texto detectado (modo espera): '{text_detected}'!")
-                        self.get_logger().info(f"Texto detectado processado (modo espera): '{processed_text}'!")
+                        if self.verbose_: self.get_logger().info(f"Texto detectado (modo espera): '{text_detected}'!")
+                        if self.verbose_: self.get_logger().info(f"Texto detectado processado (modo espera): '{processed_text}'!")
                         if any(wake_word in processed_text for wake_word in self.wake_words_):
                             # após detectar a wake word, entra em modo de escuta
                             # Modo de escuta: escuta por até 30 segundos e transcreve a frase
@@ -301,7 +324,7 @@ class VoiceCommandsDetectorNode(Node):
                                 self.save_wav(cmd_audio_data, self.TEMP_WAV, sample_rate=cmd_rate, channels=cmd_ch)
                                 cmd_text_detected = self.transcribe_audio(self.whisper_, self.TEMP_WAV)
                                 if cmd_text_detected:
-                                    self.get_logger().info(f"Frase detectada: \"{cmd_text_detected}\"\n")
+                                    self.get_logger().info(f"Frase publicada: \"{cmd_text_detected}\"\n")
                                     msg = String()
                                     msg.data = cmd_text_detected
                                     self.publisher_.publish(msg)
@@ -310,9 +333,9 @@ class VoiceCommandsDetectorNode(Node):
                                     self.get_logger().info("Nenhuma frase detectada\n")
 
                         else:
-                            self.get_logger().info("Nenhuma Wake Word detectada.")
+                            if self.verbose_: self.get_logger().info("Nenhuma Wake Word detectada.")
 
-                    self.get_logger().info("Voltando para o modo de espera.\n")
+                    if self.verbose_: self.get_logger().info("Voltando para o modo de espera.\n")
 
             except KeyboardInterrupt:
                 self.get_logger().info("\n\nInterrupted by user")
@@ -323,7 +346,7 @@ class VoiceCommandsDetectorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = VoiceCommandsDetectorNode()
+    node = SpeechToText()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

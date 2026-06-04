@@ -38,10 +38,11 @@ setup(
     entry_points={
         'console_scripts': [
             "camera_publisher = lisa_pkg.camera_publisher:main",
-            "display_control_service = lisa_pkg.display_control_service:main",
+            "controle_tela_service = lisa_pkg.controle_tela_service:main",
             "lisa_control = lisa_pkg.lisa_control:main",
-            "hand_gesture_detector = lisa_pkg.hand_gesture_detector:main",
-            "voice_commands_detector = lisa_pkg.voice_commands_detector:main"
+            "detector_gestos = lisa_pkg.detector_gestos:main",
+            "speech_to_text = lisa_pkg.speech_to_text:main",
+            "detector_comandos_de_voz = lisa_pkg.detector_comandos_de_voz:main"
         ],
     },
 )

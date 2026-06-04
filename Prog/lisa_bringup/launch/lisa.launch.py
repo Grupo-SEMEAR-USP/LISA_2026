@@ -9,14 +9,14 @@ def generate_launch_description():
         executable="camera_publisher"
     )
 
-    hand_gesture_detector = Node(
+    detector_gestos = Node(
         package="lisa_pkg",
-        executable="hand_gesture_detector"
+        executable="detector_gestos"
     )
 
-    display_control_service = Node(
+    controle_tela_service = Node(
         package="lisa_pkg",
-        executable="display_control_service"
+        executable="controle_tela_service"
     )
     
     lisa_control = Node(
@@ -24,15 +24,21 @@ def generate_launch_description():
         executable="lisa_control"
     )
 
-    voice_commands_detector = Node(
+    speech_to_text = Node(
         package="lisa_pkg",
-        executable="voice_commands_detector"
+        executable="speech_to_text"
+    )
+
+    detector_comandos_de_voz = Node(
+        package="lisa_pkg",
+        executable="detector_comandos_de_voz"
     )
 
     ld.add_action(camera_publisher)
-    ld.add_action(hand_gesture_detector)
-    ld.add_action(display_control_service)
+    ld.add_action(detector_gestos)
+    ld.add_action(controle_tela_service)
     ld.add_action(lisa_control)
-    ld.add_action(voice_commands_detector)
+    ld.add_action(speech_to_text)
+    ld.add_action(detector_comandos_de_voz)
 
     return ld

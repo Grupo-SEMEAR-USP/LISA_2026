@@ -20,17 +20,17 @@ Pode ser requisitado para rodar outro gif (uma vez por requisição).
 Só pode atender uma requisição a cada 5 segundos, pois isso evita de tocar um gif enquanto outro já está sendo executado.
 Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até outra requisição ser feita (modo soneca).
 
-    Servidor no serviço: /display_control
+    Servidor no serviço: /controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/DisplayControl
             - request: string desired_gif 
             - response: bool success
 
 '''
 
-class DisplayControlService(Node):
+class ControleTelaService(Node):
 
     def __init__(self):
-        super().__init__('display_control_service')
+        super().__init__('controle_tela')
 
         self.base_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'telas')
         self.env_ = os.environ.copy()
@@ -44,7 +44,7 @@ class DisplayControlService(Node):
         self.is_sleeping_ = False
 
         self.callback_group_ = ReentrantCallbackGroup() # grupo que permite rodar o timer e o serviço em paralelo
-        self.srv_ = self.create_service(DisplayControl, 'display_control', self.display_control_callback, callback_group=self.callback_group_)        
+        self.srv_ = self.create_service(DisplayControl, 'controle_tela_service', self.display_control_callback, callback_group=self.callback_group_)        
         self.sleep_control_timer_ = self.create_timer(15, self.sleep_timer, callback_group=self.callback_group_)    # checa soneca a cada 15 segundos
         
         if not self.start_background_gif_loop():
@@ -154,7 +154,7 @@ class DisplayControlService(Node):
 
 def main():
     rclpy.init()
-    node = DisplayControlService()
+    node = ControleTelaService()
     executor = MultiThreadedExecutor()  # usa executor MultiThread para rodar o timer de soneca da lisa em paralelo ao nó
     executor.add_node(node)
     try:

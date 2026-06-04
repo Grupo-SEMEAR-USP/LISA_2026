@@ -11,10 +11,10 @@ Controlador principal da LISA
 
 Recebe resultados dos nós de processamento e solicita ações e serviços com base nesses resultados.
 
-    Tópico inscrito: /hand_gestures
+    Tópico inscrito: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
 
-    Cliente no serviço: /display_control
+    Cliente no serviço: /controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/DisplayControl
             - request: string desired_gif 
             - response: bool success
@@ -25,8 +25,8 @@ class LisaControlNode(Node):
 
     def __init__(self):
         super().__init__("lisa_control")
-        self.subscriber_ = self.create_subscription(String, "hand_gestures", self.hand_gestures_subscription_callback, 10)
-        self.display_client_ = self.create_client(DisplayControl, 'display_control')
+        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, 10)
+        self.display_client_ = self.create_client(DisplayControl, 'controle_tela_service')
 
         while not self.display_client_.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'Esperando serviço display_control')

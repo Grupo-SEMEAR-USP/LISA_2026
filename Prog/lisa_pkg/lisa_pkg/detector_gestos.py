@@ -21,10 +21,10 @@ Detector de Gestos de Mão
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
 Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/5 do fps da câmera.
 
-    Tópico inscrito: /frame
+    Tópico inscrito: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 
 
-    Tópico publicado: /hand_gestures
+    Tópico publicado: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
 
 '''
@@ -81,8 +81,8 @@ class DetectorGestosNode(Node):
 
     def __init__(self):
         super().__init__("detector_gestos")
-        self.subscriber_ = self.create_subscription(Image, "frame", self.detect_gesture, 10)
-        self.publisher_ =  self.create_publisher(String, "hand_gestures", 10)
+        self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, 10)
+        self.publisher_ =  self.create_publisher(String, "visao/gestos", 10)
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'gesture_recognizer.task')
 
