@@ -203,7 +203,7 @@ class DetectorGestosNode(Node):
 
             # Publica o resultado
             if self.current_gesture_ not in ["none", None] and score >= self.min_gesture_score_ and self.gesture_counter_ >= self.num_gesture_frames_:
-                self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
+                #self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
                 self.msg_.data = self.current_gesture_
                 self.publisher_.publish(self.msg_)
                 self.gesture_counter_ = 0

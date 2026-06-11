@@ -4,6 +4,16 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
+    controle_estados = Node(
+        package="lisa_pkg",
+        executable="controle_estados"
+    )
+
+    controle_tela = Node(
+        package="lisa_pkg",
+        executable="controle_tela"
+    )
+
     camera_publisher = Node(
         package="lisa_pkg",
         executable="camera_publisher"
@@ -13,15 +23,10 @@ def generate_launch_description():
         package="lisa_pkg",
         executable="detector_gestos"
     )
-
-    controle_tela_service = Node(
-        package="lisa_pkg",
-        executable="controle_tela_service"
-    )
     
-    lisa_control = Node(
+    modo_gestos = Node(
         package="lisa_pkg",
-        executable="lisa_control"
+        executable="modo_gestos"
     )
 
     speech_to_text = Node(
@@ -34,11 +39,12 @@ def generate_launch_description():
         executable="detector_comandos_de_voz"
     )
 
+    ld.add_action(controle_estados)
+    ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
     ld.add_action(detector_gestos)
-    ld.add_action(controle_tela_service)
-    ld.add_action(lisa_control)
-    ld.add_action(speech_to_text)
+    ld.add_action(modo_gestos)
     ld.add_action(detector_comandos_de_voz)
+    #ld.add_action(speech_to_text)
 
     return ld

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from lisa_interfaces.srv import DisplayControl
+from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
@@ -21,13 +21,13 @@ Só pode atender uma requisição a cada 5 segundos, pois isso evita de tocar um
 Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até outra requisição ser feita (modo soneca).
 
     Servidor no serviço: /controle_tela_service
-        - Tipo da mensagem: lisa_interfaces/srv/DisplayControl
-            - request: string desired_gif 
-            - response: bool success
+        - Tipo da mensagem: lisa_interfaces/srv/ControleTela
+            - request: string gif_desejado 
+            - response: bool sucesso
 
 '''
 
-class ControleTelaService(Node):
+class ControleTelaNode(Node):
 
     def __init__(self):
         super().__init__('controle_tela')
@@ -44,7 +44,7 @@ class ControleTelaService(Node):
         self.is_sleeping_ = False
 
         self.callback_group_ = ReentrantCallbackGroup() # grupo que permite rodar o timer e o serviço em paralelo
-        self.srv_ = self.create_service(DisplayControl, 'controle_tela_service', self.display_control_callback, callback_group=self.callback_group_)        
+        self.srv_ = self.create_service(ControleTela, 'controle_tela_service', self.controle_tela_callback, callback_group=self.callback_group_)        
         self.sleep_control_timer_ = self.create_timer(15, self.sleep_timer, callback_group=self.callback_group_)    # checa soneca a cada 15 segundos
         
         if not self.start_background_gif_loop():
@@ -54,17 +54,17 @@ class ControleTelaService(Node):
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
 
-    def display_control_callback(self, request, response):
+    def controle_tela_callback(self, request, response):
         if not self.can_play_gif():
-            self.get_logger().info(f"Requisição '{request.desired_gif}' negada (tela está em cooldown).")
-            response.success = False
+            self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (tela está em cooldown).")
+            response.sucesso = False
             return response
 
         self.last_request_time_ = time.time()
         if self.is_sleeping_:
             self.wake_up()
 
-        response.success = self.play_gif_once(request.desired_gif, wait_gif=True)
+        response.sucesso = self.play_gif_once(request.gif_desejado, wait_gif=True)
         return response
     
 
@@ -154,7 +154,7 @@ class ControleTelaService(Node):
 
 def main():
     rclpy.init()
-    node = ControleTelaService()
+    node = ControleTelaNode()
     executor = MultiThreadedExecutor()  # usa executor MultiThread para rodar o timer de soneca da lisa em paralelo ao nó
     executor.add_node(node)
     try:
