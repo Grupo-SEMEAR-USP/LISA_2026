@@ -14,4 +14,4 @@ O projeto busca desenvolver um robô capaz de:
 - 😊 Expressar emoções através de movimentos da cabeça, braços e expressões visuais.
 
 ## Códigos 
-- Para acessar a parte de motores, clique [Aqui]()
+- Para acessar a parte de motores, clique [Aqui](Firmware/motores)
