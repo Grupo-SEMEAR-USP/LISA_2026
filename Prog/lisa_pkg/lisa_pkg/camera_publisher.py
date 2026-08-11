@@ -80,17 +80,17 @@ class CameraPublisherNode(Node):
             return
         
         frame = cv2.resize(frame, (self.frame_width_, self.frame_height_))
-        msg = self.bridge_.cv2_to_imgmsg(frame, encoding="bgr8")
+        flipped_frame = cv2.flip(frame,1) # flipa frame horizontalmente
+        msg = self.bridge_.cv2_to_imgmsg(flipped_frame, encoding="bgr8")
 
         if self.mostrar_camera_:
-            self.show_frame(frame)
+            self.show_frame(flipped_frame)
         
         self.publisher_.publish(msg)
 
 
     def show_frame(self, frame):
-        flipped_frame = cv2.flip(frame,1)
-        cv2.imshow("frame", flipped_frame)
+        cv2.imshow("frame", frame)
         cv2.waitKey(1)
 
     def destroy_node(self):

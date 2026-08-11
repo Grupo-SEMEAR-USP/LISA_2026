@@ -3,6 +3,7 @@
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from example_interfaces.msg import String
+from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
 from rclpy.node import Node
@@ -10,7 +11,6 @@ from ament_index_python.packages import get_package_share_directory
 
 import cv2
 import mediapipe as mp
-import numpy as np
 from mediapipe.tasks.python import vision
 import time
 import os
@@ -60,19 +60,20 @@ class Box():
 
 class Hand():
     def __init__(self, gesture, landmarks):
+        self.gesture_ = "none"
+        self.score_ = 0
+        self.landmarks = None
+        self.x_coords_, self.y_coords_ = [0.0], [0.0]
+
+
         if gesture.category_name:
             self.gesture_ = gesture.category_name.lower()
             self.score_ = gesture.score
-        else:
-            self.gesture_ = "none"
-            self.score_ = 0
-
         if landmarks: 
+            self.landmarks = landmarks
             self.x_coords_ = [lm.x for lm in landmarks]
             self.y_coords_ = [lm.y for lm in landmarks]
-        else:
-            self.x_coords_, self.y_coords_ = [0.0], [0.0]
-
+        
         self.box_ = Box(min(self.x_coords_), max(self.x_coords_), min(self.y_coords_), max(self.y_coords_))
 
 
@@ -82,7 +83,8 @@ class DetectorGestosNode(Node):
     def __init__(self):
         super().__init__("detector_gestos")
         self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, 10)
-        self.publisher_ =  self.create_publisher(String, "visao/gestos", 10)
+        self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", 10)
+        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/landmarks", 10)
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'gesture_recognizer.task')
 
@@ -96,7 +98,9 @@ class DetectorGestosNode(Node):
         )
         self.detector_ = vision.GestureRecognizer.create_from_options(options)
 
-        self.msg_ = String()
+        self.frame_height_ = 0
+        self.frame_width_ = 0
+        self.str_msg_ = String()
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
         self.min_gesture_score_ = 0.75 # só publica se o score for de 75% ou mais 
         self.gesture_counter_ = 0 # contador para verificar quantas vezes seguidas o gesto foi detectado
@@ -125,6 +129,7 @@ class DetectorGestosNode(Node):
 
             self.current_gesture_ = "none"
             score = 0
+            self.frame_height_, self.frame_width_, _ = frame.shape
             
             num_detected_hands = len(result.gestures)
 
@@ -139,6 +144,10 @@ class DetectorGestosNode(Node):
                 else:
                     self.current_gesture_ = "none"
                     score = 0
+
+                # publica landmarks
+                if hand1.landmarks is not None:
+                    self.publish_landmarks(hand1.landmarks)
     
             # 2 mãos detectadas
             elif num_detected_hands == 2:
@@ -194,6 +203,13 @@ class DetectorGestosNode(Node):
                     else:
                         self.current_gesture_ = "none"
                         score = 0
+
+                # Publica landmarks apenas da maior mão (ou hand1 se forem iguais)
+                if hand1.landmarks is not None and hand2.landmarks is not None:
+                    if hand1.box_.area_ >= hand2.box_.area_:
+                        self.publish_landmarks(hand1.landmarks)
+                    else:
+                        self.publish_landmarks(hand2.landmarks)
             
             # Atualiza contador
             if self.current_gesture_ == self.last_gesture_ and self.current_gesture_ != "none" and score >= self.min_gesture_score_:
@@ -204,8 +220,8 @@ class DetectorGestosNode(Node):
             # Publica o resultado
             if self.current_gesture_ not in ["none", None] and score >= self.min_gesture_score_ and self.gesture_counter_ >= self.num_gesture_frames_:
                 #self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
-                self.msg_.data = self.current_gesture_
-                self.publisher_.publish(self.msg_)
+                self.str_msg_.data = self.current_gesture_
+                self.gesture_publisher_.publish(self.str_msg_)
                 self.gesture_counter_ = 0
 
             self.last_gesture_ = self.current_gesture_
@@ -215,6 +231,16 @@ class DetectorGestosNode(Node):
         finally:  
             self.processing_ = False
 
+
+    def publish_landmarks(self, landmarks):
+        polygon_msg_ = Polygon()
+        for lm in landmarks:
+            point = Point32()
+            point.x = float(lm.x * self.frame_width_)
+            point.y = float(lm.y * self.frame_height_)
+            point.z = 0.0
+            polygon_msg_.points.append(point)
+        self.landmarks_publisher_.publish(polygon_msg_)
 
     def destroy_node(self):
         self.detector_.close()

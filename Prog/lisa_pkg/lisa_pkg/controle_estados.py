@@ -50,7 +50,7 @@ class ControleEstadosNode(Node):
         self.modo_gestos_client_ = self.create_client(Trigger, "modo_gestos_service")
 
         self.estado_anterior = None
-        self.estado_atual = Estados.MENU
+        self.estado_atual = Estados.MODO_GESTOS
 
 
     def publicar_estado(self):

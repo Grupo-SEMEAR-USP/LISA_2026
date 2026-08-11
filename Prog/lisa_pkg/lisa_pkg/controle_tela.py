@@ -39,7 +39,7 @@ class ControleTelaNode(Node):
         self.sleeping_gif_process_ = None
 
         self.request_cooldown_ = 5  # só pode atender a um novo request depois de 5 segundos após o último 
-        self.lisa_sleep_timeout_ = 3 * 60   # após 3 minutos de inatividade, a LISA entrará no modo dormindo
+        self.lisa_sleep_timeout_ = 0.5 * 60   # após 3 minutos de inatividade, a LISA entrará no modo dormindo
         self.last_request_time_ = time.time()
         self.is_sleeping_ = False
 

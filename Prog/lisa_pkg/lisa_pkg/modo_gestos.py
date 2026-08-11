@@ -48,7 +48,8 @@ class ModoGestosNode(Node):
             "like" : "happy",
             "zero" : "star",
             "two" : "party",
-            "three" : "dizzy"
+            "three" : "dizzy",
+            "five" : "gestos"
         }
 
         self.ativo = False
@@ -63,9 +64,10 @@ class ModoGestosNode(Node):
         else:
             hand_gesture = msg.data
             if hand_gesture in self.hand_gesture_request_map_.keys():
-                if self.num_atual_de_requisicoes >= self.num_maximo_de_requisicoes or hand_gesture == "dislike":
-                    self.desativar()
-                    return
+                #if self.num_atual_de_requisicoes >= self.num_maximo_de_requisicoes or hand_gesture == "dislike":
+                #if hand_gesture == "dislike":
+                    #self.desativar()
+                    #return
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
                 self.num_atual_de_requisicoes += 1
                 self.send_tela_request(gif_desejado)

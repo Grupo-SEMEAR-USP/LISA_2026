@@ -242,15 +242,13 @@ class SpeechToText(Node):
                     min_silence_duration_ms=500,
                     speech_pad_ms=200
                 ),
-                # MUDANÇA 2: Evita que alucinações passadas interfiram no áudio atual
-                condition_on_previous_text=False 
+                condition_on_previous_text=False # Evita que alucinações passadas interfiram no áudio atual
             )
             
             valid_texts = []
             for seg in segments:
-                # MUDANÇA 1: Filtra alucinações baseadas em ruído/silêncio.
+                # Filtra alucinações baseadas em ruído/silêncio.
                 # Se a chance de ser "não-fala" for menor que 60%, aceitamos o texto.
-                # Você pode ajustar esse limite (0.6 a 0.8) de acordo com o seu microfone.
                 if seg.no_speech_prob < 0.6:
                     valid_texts.append(seg.text.strip())
                 else:
@@ -338,7 +336,6 @@ class SpeechToText(Node):
                     if self.verbose_: self.get_logger().info("Voltando para o modo de espera.\n")
 
             except KeyboardInterrupt:
-                self.get_logger().info("\n\nInterrupted by user")
                 break
             except Exception as e:
                 self.get_logger().error(f"Erro: {e}")
