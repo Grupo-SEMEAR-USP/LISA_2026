@@ -1,0 +1,123 @@
+import cv2
+import numpy as np
+from fer.fer import FER
+
+detector = FER(mtcnn=False)
+
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+# Inicialização de tela cheia anti-bug do Linux
+cv2.namedWindow("olhos", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
+frame_inicial = np.zeros((1080, 1920, 3), dtype=np.uint8)
+cv2.imshow("olhos", frame_inicial)
+cv2.waitKey(1)
+cv2.setWindowProperty("olhos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+def desenhar_olho(frame, cx, cy, raio, raio_glare, emocao):
+    # Cores base (BGR)
+    cor_glare = (160, 55, 250)
+    cor_olho = (137, 31, 222)
+    
+    if emocao == 'angry':
+        cor_glare = (80, 80, 255)
+        cor_olho = (20, 20, 220)
+    elif emocao == 'sad':
+        cor_glare = (255, 180, 100)
+        cor_olho = (230, 100, 30)
+
+    # 1. Expressão Feliz (^ ^)
+    if emocao == 'happy':
+        espessura = int(raio * 0.08)
+        topo = cy - int(raio * 0.15)
+        base_y = cy + int(raio * 0.1)
+        esquerda = cx - int(raio * 0.4)
+        direita = cx + int(raio * 0.4)
+        meio = cx
+        cv2.line(frame, (esquerda, base_y), (meio, topo), cor_olho, espessura)
+        cv2.line(frame, (meio, topo), (direita, base_y), cor_olho, espessura)
+        return
+
+    # Ângulo para simular expressão (Raiva inclina para dentro, Tristeza para fora)
+    angulo = 0
+    if emocao == 'angry':
+        angulo = -15 if cx < frame.shape[1] // 2 else 15
+    elif emocao == 'sad':
+        angulo = 15 if cx < frame.shape[1] // 2 else -15
+
+    # 2. Glare Translúcido no fundo
+    glare_rx = int(raio_glare * 0.35)
+    glare_ry = int(raio_glare * 0.70)
+    
+    overlay = frame.copy()
+    cv2.ellipse(overlay, (cx, cy), (glare_rx, glare_ry), angulo, 0, 360, cor_glare, -1)
+    
+    alfa = 0.35
+    cv2.addWeighted(overlay, alfa, frame, 1.0 - alfa, 0, frame)
+
+    # 3. Olho Principal
+    iris_rx = int(raio * 0.35)
+    iris_ry = int(raio * 0.70)
+    cv2.ellipse(frame, (cx, cy), (iris_rx, iris_ry), angulo, 0, 360, cor_olho, -1)
+
+emocao_atual = 'neutral'
+frame_count = 0
+
+while True:
+    ret, cam = cap.read()
+    if not ret:
+        break
+
+    frame_count += 1
+
+    # Roda a IA do FER a cada 3 frames para manter a tela fluida
+    if frame_count % 3 == 0:
+        small_frame = cv2.resize(cam, (0, 0), fx=0.5, fy=0.5)
+        result = detector.detect_emotions(small_frame)
+
+        if result:
+            # Pega o maior rosto detectado
+            maior_rosto = max(result, key=lambda f: f["box"][2] * f["box"][3])
+            emotions = maior_rosto["emotions"]
+
+            alvos = ['angry', 'sad', 'happy']
+            filtradas = {k: emotions[k] for k in alvos if k in emotions}
+
+            if filtradas:
+                dominante = max(filtradas, key=filtradas.get)
+                # Só troca a emoção se a confiança for razoável (> 35%)
+                if filtradas[dominante] > 0.35:
+                    emocao_atual = dominante
+                else:
+                    emocao_atual = 'neutral'
+        else:
+            emocao_atual = 'neutral'
+
+    # Resolução da janela
+    W = cv2.getWindowImageRect("olhos")[2]
+    H = cv2.getWindowImageRect("olhos")[3]
+    if W <= 0 or H <= 0:
+        W, H = 1920, 1080
+
+    fundo = np.zeros((H, W, 3), dtype=np.uint8)
+
+    raio = int(min(W, H) * 0.40)
+    raio_glare = int(min(W, H) * 0.45)
+
+    esq_cx = W // 2 - int(W * 0.15)
+    dir_cx = W // 2 + int(W * 0.15)
+    cy = H // 2
+
+    # Renderiza os olhos centralizados reagindo à emoção
+    desenhar_olho(fundo, esq_cx, cy, raio, raio_glare, emocao_atual)
+    desenhar_olho(fundo, dir_cx, cy, raio, raio_glare, emocao_atual)
+
+    cv2.imshow("olhos", fundo)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
