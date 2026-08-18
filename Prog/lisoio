@@ -1,0 +1,123 @@
+import cv2
+import numpy as np
+
+# É O NREE
+detector = cv2.CascadeClassifier("/home/dp/haarcascade_frontalface_default.xml")
+
+ox = 0.0
+oy = 0.0
+
+def desenhar_olho(frame, cx, cy, raio, raio_glare, dx, dy, piscando):
+    if piscando:
+        espessura = int(raio * 0.08) 
+        cor = (137, 31, 222)
+        topo = cy - int(raio * 0.15) 
+        base_y = cy + int(raio * 0.1)
+        esquerda = cx - int(raio * 0.4)
+        direita  = cx + int(raio * 0.4)
+        meio     = cx
+        
+        cv2.line(frame, (esquerda, base_y), (meio, topo), cor, espessura)
+        cv2.line(frame, (meio, topo), (direita, base_y), cor, espessura)
+    else:
+        # 1. (OLHO MAIOR ATRÁS)
+        glare_rx = int(raio_glare * 0.35)
+        glare_ry = int(raio_glare * 0.70)
+        
+        glare_pdx = int(dx * raio_glare * 0.7)
+        glare_pdy = int(dy * raio_glare * 0.55)
+        glare_px = cx + glare_pdx
+        glare_py = cy + glare_pdy
+
+        # cor do glare: rosa mais claro (Padrão BGR)
+        cor_glare = (160, 55, 250) 
+        cv2.ellipse(frame, (glare_px, glare_py), (glare_rx, glare_ry), 0, 0, 360, cor_glare, -1)
+
+        # 2. (MENOR NA FRENTE)
+        iris_rx = int(raio * 0.35)
+        iris_ry = int(raio * 0.70)
+        
+        pdx = int(dx * raio * 0.7)
+        pdy = int(dy * raio * 0.55)
+        px = cx + pdx
+        py = cy + pdy
+
+        # Cor do olho normal
+        cor_olho = (137, 31, 222)
+        cv2.ellipse(frame, (px, py), (iris_rx, iris_ry), 0, 0, 360, cor_olho, -1)
+
+
+def main():
+    global ox, oy
+
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    # ----------LÓGICA DE TELA CHEIA (ANTI-BUG DO LINUX---------
+    cv2.namedWindow("olhos", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
+    frame_inicial_gigante = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    cv2.imshow("olhos", frame_inicial_gigante)
+    cv2.waitKey(1)
+    cv2.setWindowProperty("olhos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # ----------------------------------------------------------
+
+    alvo_x, alvo_y = 0.0, 0.0
+    tick = 0
+
+    # inicia loop da câmera
+    while True:
+        ret, cam = cap.read()
+        if not ret:
+            break
+
+        cam = cv2.flip(cam, 1)
+        ch, cw = cam.shape[:2]
+
+        cinza = cv2.cvtColor(cam, cv2.COLOR_BGR2GRAY)
+        rostos = detector.detectMultiScale(cinza, 1.1, 5, minSize=(60, 60))
+
+        if len(rostos) > 0:
+            x, y, w, h = sorted(rostos, key=lambda r: r[2]*r[3], reverse=True)[0]
+            fx = (x + w // 2) / cw
+            fy = (y + h // 2) / ch
+            alvo_x = (fx - 0.5) * 2.0
+            alvo_y = (fy - 0.5) * 2.0
+
+        ox += (alvo_x - ox) * 0.15
+        oy += (alvo_y - oy) * 0.15
+
+        tick += 1
+        piscando = (tick % 150) < 10
+
+        W = cv2.getWindowImageRect("olhos")[2]
+        H = cv2.getWindowImageRect("olhos")[3]
+        
+        if W <= 0 or H <= 0:
+            W, H = 1920, 1080 
+
+        fundo = np.zeros((H, W, 3), dtype=np.uint8)
+
+        # fefinindo o tamanho do olho e do glare
+        raio = int(min(W, H) * 0.40)
+        raio_glare = int(min(W, H) * 0.45)        
+        
+        esq_cx = W // 2 - int(W * 0.15)
+        dir_cx = W // 2 + int(W * 0.15)
+        cy = H // 2
+
+        desenhar_olho(fundo, esq_cx, cy, raio, raio_glare, ox, oy, piscando)
+        desenhar_olho(fundo, dir_cx, cy, raio, raio_glare, ox, oy, piscando)
+
+        cv2.imshow("olhos", fundo)
+        
+        # --- O WAITKEY TEM Q FICAR AQUI DENTRO NO LOOP ---
+        # ele fala quem diz para o sistema atualizar a imagem e verifica se você apertou 'q'
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
