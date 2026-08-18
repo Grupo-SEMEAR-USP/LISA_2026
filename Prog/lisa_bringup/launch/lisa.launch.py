@@ -39,6 +39,11 @@ def generate_launch_description():
         executable="detector_comandos_de_voz"
     )
 
+    desenho_na_tela = Node(
+        package="lisa_pkg",
+        executable="desenho_na_tela"
+    )
+
     ld.add_action(controle_estados)
     ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
@@ -46,5 +51,6 @@ def generate_launch_description():
     ld.add_action(modo_gestos)
     ld.add_action(detector_comandos_de_voz)
     #ld.add_action(speech_to_text)
+    ld.add_action(desenho_na_tela)
 
     return ld

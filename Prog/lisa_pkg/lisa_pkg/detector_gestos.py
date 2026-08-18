@@ -212,15 +212,18 @@ class DetectorGestosNode(Node):
                         self.publish_landmarks(hand2.landmarks)
             
             # Atualiza contador
-            if self.current_gesture_ == self.last_gesture_ and self.current_gesture_ != "none" and score >= self.min_gesture_score_:
-                self.gesture_counter_ += 1
+            if self.current_gesture_ == self.last_gesture_:
+                if self.current_gesture_ == "none" or score >= self.min_gesture_score_:
+                    self.gesture_counter_ += 1
+                else:
+                    self.gesture_counter_ = 0
             else:
                 self.gesture_counter_ = 0
 
             # Publica o resultado
-            if self.current_gesture_ not in ["none", None] and score >= self.min_gesture_score_ and self.gesture_counter_ >= self.num_gesture_frames_:
-                #self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
+            if self.gesture_counter_ >= self.num_gesture_frames_:
                 self.str_msg_.data = self.current_gesture_
+                #self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
                 self.gesture_publisher_.publish(self.str_msg_)
                 self.gesture_counter_ = 0
 
