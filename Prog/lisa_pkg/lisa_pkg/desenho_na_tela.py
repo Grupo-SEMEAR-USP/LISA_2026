@@ -22,7 +22,6 @@ class DesenhoNaTelaNode(Node):
 
         self.tela_ativa = False
         self.ultimo_gesto = None
-        # self.aplicar_fullscreen = False  <-- REMOVIDO: Não precisamos mais dessa flag
 
         self.current_frame = None
         self.current_gesture = None
@@ -69,12 +68,9 @@ class DesenhoNaTelaNode(Node):
         frame = cv2.resize(frame, (1920, 1080))
 
         cv2.imshow("Desenho dedo", frame)
-        
-        # O waitKey precisa ser a última coisa relacionada à janela no loop
+
         if cv2.waitKey(1) == ord('q'):
             pass
-            
-        # <-- REMOVIDA A LÓGICA DO if self.aplicar_fullscreen DAQUI
 
 
     def frame_sub_cb(self, msg):
@@ -93,30 +89,39 @@ class DesenhoNaTelaNode(Node):
 
 
     def ativar_tela(self):
-        # 1. Cria a janela com FREERATIO para o Linux não brigar com as bordas
+        # Garante que não tem nenhuma janela fantasma presa na memória do Linux
+        cv2.destroyAllWindows()
+        cv2.waitKey(1)
+
+        # Cria a janela
         cv2.namedWindow("Desenho dedo", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
         
-        # 2. Mostra o PRIMEIRO frame JÁ redimensionado para não assustar o sistema depois
+        # Mostra o primeiro frame gigante
         if self.current_frame is not None:
             frame_inicial_gigante = cv2.resize(self.current_frame, (1920, 1080))
             cv2.imshow("Desenho dedo", frame_inicial_gigante)
             
-        # 3. Pausa para o sistema renderizar
-        cv2.waitKey(1)
+        # CRÍTICO: Pausa um pouquinho maior (10ms) para dar tempo do Linux respirar
+        cv2.waitKey(10)
         
-        # 4. Aplica o Fullscreen
+        # Aplica o Fullscreen
         cv2.setWindowProperty("Desenho dedo", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         
         self.tela_ativa = True
 
     def desativar_tela(self):
         try:
-            # Destrói a janela para ela sumir da tela
             cv2.destroyWindow("Desenho dedo")
-            # É necessário dar um waitKey rápido para o sistema operacional processar o fechamento da janela
-            cv2.waitKey(1) 
+            
+            # O PULO DO GATO: Rodar o waitKey em loop curto!
+            # Isso "drena" a fila de eventos da interface gráfica do Linux, 
+            # forçando ele a deletar a janela da memória completamente.
+            for _ in range(5):
+                cv2.waitKey(1) 
+                
         except Exception:
             pass
+            
         self.tela_ativa = False
 
 

@@ -7,7 +7,6 @@ from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
-import time
 
 '''
 Modo gestos da LISA
