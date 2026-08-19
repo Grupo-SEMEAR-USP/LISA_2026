@@ -2,26 +2,33 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from example_interfaces.msg import String
 from geometry_msgs.msg import Point32, Polygon
+from example_interfaces.srv import Trigger
+from lisa_interfaces.srv import ControleEstados
 
 import rclpy
 from rclpy.node import Node
 
 import cv2
 
-class DesenhoNaTelaNode(Node):
+class ModoDesenhoNode(Node):
 
     def __init__(self):
-        super().__init__("desenho_na_tela")
+        super().__init__("modo_desenho")
         self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, 10)
         self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, 10)
         self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/landmarks", self.landmarks_sub_cb, 10)
         self.bridge_ = CvBridge()
 
+        self.modo_gestos_srv_ = self.create_service(Trigger, 'modo_desenho_service', self.modo_desenho_srv_callback)
+        self.ativo = False
+
+        self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
+        self.controle_estados_request_ = ControleEstados.Request()
+        while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'Esperando serviço controle_estados_service')
+
         self.frame_height_ = 0
         self.frame_width_ = 0
-
-        self.tela_ativa = False
-        self.ultimo_gesto = None
 
         self.current_frame = None
         self.current_gesture = None
@@ -34,8 +41,20 @@ class DesenhoNaTelaNode(Node):
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
 
+    def modo_desenho_srv_callback(self, request, response):
+        if not self.ativo:
+            response.success = True
+            response.message = "Modo Desenho Ativado"
+            self.ativar()
+        else:
+            response.success = False
+            response.message = "Modo Desenho já estava ativado"
+
+        return response
+
+
     def desenhar_na_tela(self):
-        if self.current_frame is None:
+        if self.current_frame is None or not self.ativo:
             return
 
         frame = self.current_frame
@@ -44,19 +63,11 @@ class DesenhoNaTelaNode(Node):
         
         self.frame_height_, self.frame_width_, _ = frame.shape
 
-        if gesture == "zero" and self.ultimo_gesto != "zero":
-            if self.tela_ativa:
-                self.desativar_tela()
-                self.points_to_be_drawn.clear()
-            else:
-                self.ativar_tela()
+        if gesture == "three":
+            self.desativar()
+            return
 
-        self.ultimo_gesto = gesture
-        
-        if not self.tela_ativa:
-            return  
-        
-        if gesture == "one" and landmarks is not None and len(landmarks) > 8:
+        elif gesture == "one" and landmarks is not None and len(landmarks) > 8:
             self.points_to_be_drawn.append(landmarks[8])
 
         elif gesture == "two":
@@ -67,7 +78,7 @@ class DesenhoNaTelaNode(Node):
 
         frame = cv2.resize(frame, (1920, 1080))
 
-        cv2.imshow("Desenho dedo", frame)
+        cv2.imshow("Desenho", frame)
 
         if cv2.waitKey(1) == ord('q'):
             pass
@@ -88,31 +99,28 @@ class DesenhoNaTelaNode(Node):
         self.current_landmarks = msg.points
 
 
-    def ativar_tela(self):
+    def ativar(self):
         # Garante que não tem nenhuma janela fantasma presa na memória do Linux
         cv2.destroyAllWindows()
         cv2.waitKey(1)
-
         # Cria a janela
-        cv2.namedWindow("Desenho dedo", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
-        
+        cv2.namedWindow("Desenho", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
         # Mostra o primeiro frame gigante
         if self.current_frame is not None:
             frame_inicial_gigante = cv2.resize(self.current_frame, (1920, 1080))
-            cv2.imshow("Desenho dedo", frame_inicial_gigante)
-            
+            cv2.imshow("Desenho", frame_inicial_gigante)
         # CRÍTICO: Pausa um pouquinho maior (10ms) para dar tempo do Linux respirar
         cv2.waitKey(10)
-        
         # Aplica o Fullscreen
-        cv2.setWindowProperty("Desenho dedo", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.setWindowProperty("Desenho", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         
-        self.tela_ativa = True
+        self.ativo = True
+        self.get_logger().info("## MODO DESENHO ATIVADO ##")
 
-    def desativar_tela(self):
+
+    def desativar(self):
         try:
-            cv2.destroyWindow("Desenho dedo")
-            
+            cv2.destroyWindow("Desenho")
             # O PULO DO GATO: Rodar o waitKey em loop curto!
             # Isso "drena" a fila de eventos da interface gráfica do Linux, 
             # forçando ele a deletar a janela da memória completamente.
@@ -121,8 +129,17 @@ class DesenhoNaTelaNode(Node):
                 
         except Exception:
             pass
-            
-        self.tela_ativa = False
+
+        self.points_to_be_drawn.clear()    
+        self.ativo = False
+        self.send_controle_estados_request("MENU")
+        self.get_logger().info("## MODO DESENHO DESATIVADO ##")
+
+
+    def send_controle_estados_request(self, estado_desejado):
+        self.get_logger().info(f"Enviando requisição '{estado_desejado}' ao controle de estados.")
+        self.controle_estados_request_.estado_desejado = estado_desejado
+        return self.controle_estados_client_.call_async(self.controle_estados_request_)
 
 
     def destroy_node(self):
@@ -133,7 +150,7 @@ class DesenhoNaTelaNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = DesenhoNaTelaNode()
+    node = ModoDesenhoNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

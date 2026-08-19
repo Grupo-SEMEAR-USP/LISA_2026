@@ -28,16 +28,18 @@ class ModoGestosNode(Node):
     def __init__(self):
         super().__init__("modo_gestos")
         self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, 10)
-        self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
-        self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
-
         self.modo_gestos_srv_ = self.create_service(Trigger, 'modo_gestos_service', self.modo_gestos_srv_callback)
 
+        self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'Esperando serviço controle_tela_service')
-            
         self.tela_request_ = ControleTela.Request()
+
+        self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
+        while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'Esperando serviço controle_estados_service')
         self.controle_estados_request_ = ControleEstados.Request()
+        self.ativo = False
 
         # mapa (dicionário) que associa um gesto a um gif
         self.hand_gesture_request_map_ = {
@@ -51,7 +53,6 @@ class ModoGestosNode(Node):
             "five" : "gestos"
         }
 
-        self.ativo = False
         self.num_atual_de_requisicoes = 0
         self.num_maximo_de_requisicoes = 50 # faz no maximo 50 requisições antes de desativar
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
@@ -64,9 +65,9 @@ class ModoGestosNode(Node):
             hand_gesture = msg.data
             if hand_gesture in self.hand_gesture_request_map_.keys():
                 #if self.num_atual_de_requisicoes >= self.num_maximo_de_requisicoes or hand_gesture == "dislike":
-                #if hand_gesture == "dislike":
-                    #self.desativar()
-                    #return
+                if hand_gesture == "dislike":
+                    self.desativar()
+                    return
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
                 self.num_atual_de_requisicoes += 1
                 self.send_tela_request(gif_desejado)
@@ -94,14 +95,15 @@ class ModoGestosNode(Node):
         return response
         
     def desativar(self):
-        self.get_logger().info("## MODO GESTOS DESATIVADO ##")
         self.ativo = False
         self.send_controle_estados_request("MENU")
+        self.get_logger().info("## MODO GESTOS DESATIVADO ##")
 
     def ativar(self):
-        self.get_logger().info("## MODO GESTOS ATIVADO ##")
         self.ativo = True
         self.num_atual_de_requisicoes = 0
+        self.get_logger().info("## MODO GESTOS ATIVADO ##")
+
 
 def main(args=None):
     rclpy.init(args=args)

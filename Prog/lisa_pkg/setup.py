@@ -45,7 +45,7 @@ setup(
             "detector_comandos_de_voz = lisa_pkg.detector_comandos_de_voz:main",
             "lisa_node = lisa_pkg.lisa_node:main",
             "controle_estados = lisa_pkg.controle_estados:main",
-            "desenho_na_tela = lisa_pkg.desenho_na_tela:main"
+            "modo_desenho = lisa_pkg.modo_desenho:main"
         ],
     },
 )

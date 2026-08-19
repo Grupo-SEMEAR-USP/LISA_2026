@@ -104,7 +104,7 @@ class DetectorGestosNode(Node):
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
         self.min_gesture_score_ = 0.75 # só publica se o score for de 75% ou mais 
         self.gesture_counter_ = 0 # contador para verificar quantas vezes seguidas o gesto foi detectado
-        self.num_gesture_frames_ = 5 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
+        self.num_gesture_frames_ = 1 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
         self.current_gesture_ = "none"
         self.last_gesture_ = "none"
         self.two_handed_gestures_ = ["heart"]   # gestos que precisam ser detectados em duas mãos ao mesmo tempo (precisam ser simétricos)
