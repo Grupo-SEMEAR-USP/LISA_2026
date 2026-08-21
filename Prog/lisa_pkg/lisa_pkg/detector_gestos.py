@@ -21,11 +21,17 @@ Detector de Gestos de Mão
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
 Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/5 do fps da câmera.
 
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String 
+
     Tópico inscrito: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 
 
     Tópico publicado: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
+
+    Tópico publicado: /visao/landmarks
+        - Tipo da mensagem: geometry_msgs/msg/Polygon
 
 '''
 
@@ -104,10 +110,12 @@ class DetectorGestosNode(Node):
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
         self.min_gesture_score_ = 0.75 # só publica se o score for de 75% ou mais 
         self.gesture_counter_ = 0 # contador para verificar quantas vezes seguidas o gesto foi detectado
-        self.num_gesture_frames_ = 1 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
+        self.num_gesture_frames_ = 5 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
         self.current_gesture_ = "none"
         self.last_gesture_ = "none"
         self.two_handed_gestures_ = ["heart"]   # gestos que precisam ser detectados em duas mãos ao mesmo tempo (precisam ser simétricos)
+
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
@@ -244,6 +252,15 @@ class DetectorGestosNode(Node):
             point.z = 0.0
             polygon_msg_.points.append(point)
         self.landmarks_publisher_.publish(polygon_msg_)
+
+
+    def estado_atual_sub_callback(self,msg):
+        if msg.data == "MODO_DESENHO":
+            # passa a publicar o gesto sempre que detectar, sem esperar por 5 frames seguidos, para sincronizar taxa de publicação com o fps da câmera
+            self.num_gesture_frames_ = 1    
+        else:
+            self.num_gesture_frames_ = 5
+
 
     def destroy_node(self):
         self.detector_.close()

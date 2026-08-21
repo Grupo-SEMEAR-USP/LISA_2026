@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from example_interfaces.msg import String
 from lisa_interfaces.srv import ControleTela
 
 import rclpy
@@ -23,6 +24,9 @@ Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até ou
             - request: string gif_desejado 
             - response: bool sucesso
 
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String
+
 '''
 
 class ControleTelaNode(Node):
@@ -39,7 +43,8 @@ class ControleTelaNode(Node):
         self.last_request_time_ = time.time()
         self.request_cooldown_ = 3  # só pode atender a um novo request 3 segundos após o último 
 
-        self.srv_ = self.create_service(ControleTela, 'controle_tela_service', self.controle_tela_callback)        
+        self.srv_ = self.create_service(ControleTela, 'controle_tela_service', self.controle_tela_callback)   
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         if not self.start_background_gif_loop():
             self.get_logger().error("Erro durante a inicialização do gif de fundo (background)")
@@ -73,7 +78,22 @@ class ControleTelaNode(Node):
 
         response.sucesso = self.play_gif_once(request.gif_desejado, wait_gif=True)
         return response
-    
+
+
+    def estado_atual_sub_callback(self,msg):
+        match msg.data:
+            case "MENU":
+                if self.is_sleeping_:
+                    self.wake_up()
+                else:
+                    self.play_gif_once("blink")
+            case "MODO_GESTOS":
+                self.play_gif_once("gestos")
+            case "MODO_TROPELO":
+                self.play_gif_once("tropelo")
+            case "MODO_SONECA":
+                self.sleep()
+
 
     def start_background_gif_loop(self):
         if self.background_gif_process_ is not None:

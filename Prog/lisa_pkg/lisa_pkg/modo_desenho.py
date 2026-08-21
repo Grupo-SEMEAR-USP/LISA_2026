@@ -2,13 +2,37 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from example_interfaces.msg import String
 from geometry_msgs.msg import Point32, Polygon
-from example_interfaces.srv import Trigger
 from lisa_interfaces.srv import ControleEstados
 
 import rclpy
 from rclpy.node import Node
 
 import cv2
+
+'''
+Modo Desenho da LISA
+
+Recebe frame da câmera e resultados dos nós de processamento de visão.
+Junta as informações para permitir desenho na tela utilizando OpenCV.
+
+    Tópico inscrito: /visao/frame
+        - Tipo da mensagem: sensor_msgs/msg/Image
+
+    Tópico inscrito: /visao/landmarks
+        - Tipo da mensagem: geometry_msgs/msg/Polygon
+
+    Tópico inscrito: /visao/gestos
+        - Tipo da mensagem: example_interfaces/msg/String
+
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String 
+        
+    Cliente no serviço: /controle/estado_atual
+        - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
+            - request: string estado_desejado 
+            - response: bool sucesso
+
+'''
 
 class ModoDesenhoNode(Node):
 
@@ -19,7 +43,7 @@ class ModoDesenhoNode(Node):
         self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/landmarks", self.landmarks_sub_cb, 10)
         self.bridge_ = CvBridge()
 
-        self.modo_gestos_srv_ = self.create_service(Trigger, 'modo_desenho_service', self.modo_desenho_srv_callback)
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.ativo = False
 
         self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
@@ -39,18 +63,6 @@ class ModoDesenhoNode(Node):
         self.timer_ = self.create_timer(timer_period, self.desenhar_na_tela)
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
-
-
-    def modo_desenho_srv_callback(self, request, response):
-        if not self.ativo:
-            response.success = True
-            response.message = "Modo Desenho Ativado"
-            self.ativar()
-        else:
-            response.success = False
-            response.message = "Modo Desenho já estava ativado"
-
-        return response
 
 
     def desenhar_na_tela(self):
@@ -99,7 +111,18 @@ class ModoDesenhoNode(Node):
         self.current_landmarks = msg.points
 
 
+    def estado_atual_sub_callback(self,msg):
+        if msg.data == "MODO_DESENHO":
+            if not self.ativo:
+                self.ativar()
+        else:
+            if self.ativo:
+                self.desativar()
+
+
     def ativar(self):
+        self.current_gesture = None
+        self.current_landmarks = None
         # Garante que não tem nenhuma janela fantasma presa na memória do Linux
         cv2.destroyAllWindows()
         cv2.waitKey(1)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from example_interfaces.msg import String
-from example_interfaces.srv import Trigger
 from lisa_interfaces.srv import ControleEstados
 from lisa_interfaces.srv import ControleTela
 
@@ -9,9 +8,9 @@ import rclpy
 from rclpy.node import Node
 
 '''
-Modo gestos da LISA
+Modo Gestos da LISA
 
-Recebe resultados dos nós de processamento e solicita ações e serviços com base nesses resultados.
+Recebe resultados dos nó de detecção de gestos e dispara requisições de gifs para o controle da tela, associando cada gesto a um gif.
 
     Tópico inscrito: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
@@ -21,6 +20,14 @@ Recebe resultados dos nós de processamento e solicita ações e serviços com b
             - request: string gif_desejado 
             - response: bool sucesso
 
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String 
+        
+    Cliente no serviço: /controle/estado_atual
+        - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
+            - request: string estado_desejado 
+            - response: bool sucesso
+
 '''
 
 class ModoGestosNode(Node):
@@ -28,7 +35,6 @@ class ModoGestosNode(Node):
     def __init__(self):
         super().__init__("modo_gestos")
         self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, 10)
-        self.modo_gestos_srv_ = self.create_service(Trigger, 'modo_gestos_service', self.modo_gestos_srv_callback)
 
         self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
@@ -39,6 +45,8 @@ class ModoGestosNode(Node):
         while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'Esperando serviço controle_estados_service')
         self.controle_estados_request_ = ControleEstados.Request()
+
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.ativo = False
 
         # mapa (dicionário) que associa um gesto a um gif
@@ -64,9 +72,8 @@ class ModoGestosNode(Node):
         else:
             hand_gesture = msg.data
             if hand_gesture in self.hand_gesture_request_map_.keys():
-                #if self.num_atual_de_requisicoes >= self.num_maximo_de_requisicoes or hand_gesture == "dislike":
                 if hand_gesture == "dislike":
-                    self.desativar()
+                    self.send_controle_estados_request("MENU")
                     return
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
                 self.num_atual_de_requisicoes += 1
@@ -78,31 +85,31 @@ class ModoGestosNode(Node):
         self.tela_request_.gif_desejado = gif_desejado
         return self.tela_client_.call_async(self.tela_request_)
 
-    def send_controle_estados_request(self, estado_desejado):
-        self.get_logger().info(f"Enviando requisição '{estado_desejado}' ao controle de estados.")
-        self.controle_estados_request_.estado_desejado = estado_desejado
-        return self.controle_estados_client_.call_async(self.controle_estados_request_)
 
-    def modo_gestos_srv_callback(self, request, response):
-        if not self.ativo:
-            response.success = True
-            response.message = "Modo Gestos Ativado"
-            self.ativar()
+    def estado_atual_sub_callback(self,msg):
+        if msg.data == "MODO_GESTOS":
+            if not self.ativo:
+                self.ativar()
         else:
-            response.success = False
-            response.message = "Modo Gestos já estava ativado"
+            if self.ativo:
+                self.desativar()
 
-        return response
-        
+
     def desativar(self):
         self.ativo = False
-        self.send_controle_estados_request("MENU")
         self.get_logger().info("## MODO GESTOS DESATIVADO ##")
+
 
     def ativar(self):
         self.ativo = True
         self.num_atual_de_requisicoes = 0
         self.get_logger().info("## MODO GESTOS ATIVADO ##")
+
+
+    def send_controle_estados_request(self, estado_desejado):
+        self.get_logger().info(f"Enviando requisição '{estado_desejado}' ao controle de estados.")
+        self.controle_estados_request_.estado_desejado = estado_desejado
+        return self.controle_estados_client_.call_async(self.controle_estados_request_)
 
 
 def main(args=None):

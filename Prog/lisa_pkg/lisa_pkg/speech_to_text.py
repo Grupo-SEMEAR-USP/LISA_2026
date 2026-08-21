@@ -16,6 +16,8 @@ from unidecode import unidecode
 import threading
 
 '''
+(NÃO ESTÁ SENDO UTILIZADO)
+
 Utiliza Faster-Whisper para fazer speech-to-text, ou seja, transcrever falas (áudios) em texto.
 Adaptado de: https://github.com/OminousIndustries/Bob
 

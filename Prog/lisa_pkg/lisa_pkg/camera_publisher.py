@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from example_interfaces.msg import String
 from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
 from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
 
@@ -58,6 +59,9 @@ class CameraPublisherNode(Node):
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.ativo = False
+
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
         self.get_logger().info(f"Parâmetros: (fps={self.fps_}, frame_w={self.frame_width_}, frame_h={self.frame_height_}, mostrar_camera={self.mostrar_camera_})")
 
@@ -78,6 +82,9 @@ class CameraPublisherNode(Node):
         if not ret:
             self.get_logger().error("Erro ao ler captura.")
             return
+
+        if not self.ativo:
+            return
         
         frame = cv2.resize(frame, (self.frame_width_, self.frame_height_))
         flipped_frame = cv2.flip(frame,1) # flipa frame horizontalmente
@@ -92,6 +99,16 @@ class CameraPublisherNode(Node):
     def show_frame(self, frame):
         cv2.imshow("frame", frame)
         cv2.waitKey(1)
+
+
+    def estado_atual_sub_callback(self,msg):
+        if msg.data in ["MODO_GESTOS", "MODO_DESENHO"]:
+            if not self.ativo:
+                self.ativo = True
+        else:
+            if self.ativo:
+                self.ativo = False
+
 
     def destroy_node(self):
         if hasattr(self, "cap_"):

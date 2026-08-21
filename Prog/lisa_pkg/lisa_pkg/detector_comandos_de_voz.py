@@ -6,8 +6,6 @@ from lisa_interfaces.srv import ControleEstados, ControleTela
 import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
-from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
 
 from unidecode import unidecode
 from vosk import Model, KaldiRecognizer
@@ -16,10 +14,21 @@ import json
 import os
 
 '''
-Detector de comandos de voz com Vosk. Só detecta comandos específicos, porém é muito mais leve que o speech-to-text com whisper.
+Detector de comandos de voz com Vosk. 
+
+Só detecta comandos específicos, porém é muito mais leve que o speech-to-text com whisper.
+É o nó principal de controle do estado da LISA, enviando requisições de mudança de estado para o controle_estados de acordo com o comando detectado.
 
     Tópico publicado: /audio/comandos_de_voz
         - Tipo da mensagem: std_msgs/msg/String 
+        
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String 
+
+    Cliente no serviço: /controle/estado_atual
+        - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
+            - request: string estado_desejado 
+            - response: bool sucesso
 
 '''
 
@@ -28,9 +37,8 @@ class DetectorComandosDeVoz(Node):
     def __init__(self):
         super().__init__("detector_comandos_de_voz")
 
-        self.callback_group_ = ReentrantCallbackGroup()
         timer_period = 1/10 # 10 Hz
-        self.timer_ = self.create_timer(timer_period, self.detect_voice_commands, callback_group=self.callback_group_)
+        self.timer_ = self.create_timer(timer_period, self.detect_voice_commands)
 
         self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
         while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
@@ -42,7 +50,7 @@ class DetectorComandosDeVoz(Node):
             self.get_logger().info(f'Esperando serviço controle_tela_service')
         self.tela_request_ = ControleTela.Request()
 
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10, callback_group=self.callback_group_)
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.estado_atual_lisa = None
 
         self.acordado = False
@@ -58,14 +66,14 @@ class DetectorComandosDeVoz(Node):
             'modo cópia' : 'MODO_MIMICA',
             'modo conversa' : 'MODO_CONVERSA',
             'modo desenho' : 'MODO_DESENHO',
-            "modo tropelo" : "MODO_TROPELO",
+            "modo atropelo" : "MODO_TROPELO",
             "modo soneca" : "MODO_SONECA"
         }
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'vosk-model-small-pt-0.3')
 
         self.commmands_to_be_detected_ = list(self.commands_map_.keys())
         grammar_list = self.commmands_to_be_detected_ + ["[unk]"]   # adiciona tag "unk" para caso nenhuma das palavras seja detectada
-        self.grammar_ = json.dumps(grammar_list)
+        self.grammar_ = json.dumps(grammar_list, ensure_ascii=False)
         self.model_ = None
         self.audio_ = None
         self.stream_ = None
@@ -155,10 +163,8 @@ class DetectorComandosDeVoz(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = DetectorComandosDeVoz()
-    executor = MultiThreadedExecutor()
-    executor.add_node(node)
     try:
-        executor.spin()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
