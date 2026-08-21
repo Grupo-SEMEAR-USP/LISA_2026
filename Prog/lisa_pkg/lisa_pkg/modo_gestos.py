@@ -58,11 +58,9 @@ class ModoGestosNode(Node):
             "zero" : "star",
             "two" : "party",
             "three" : "dizzy",
-            "five" : "gestos"
+            "five" : "sad"
         }
-
-        self.num_atual_de_requisicoes = 0
-        self.num_maximo_de_requisicoes = 50 # faz no maximo 50 requisições antes de desativar
+        
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
 

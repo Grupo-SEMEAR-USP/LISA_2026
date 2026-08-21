@@ -30,6 +30,11 @@ Só detecta comandos específicos, porém é muito mais leve que o speech-to-tex
             - request: string estado_desejado 
             - response: bool sucesso
 
+    Cliente no serviço: /controle_tela_service
+        - Tipo da mensagem: lisa_interfaces/srv/ControleTela
+            - request: string gif_desejado 
+            - response: bool sucesso
+
 '''
 
 class DetectorComandosDeVoz(Node):
@@ -54,7 +59,7 @@ class DetectorComandosDeVoz(Node):
         self.estado_atual_lisa = None
 
         self.acordado = False
-        self.ativo = False
+        self.ativo = True
 
         self.commands_map_ = {
             'ei lisa' : 'WAKE',
@@ -63,7 +68,7 @@ class DetectorComandosDeVoz(Node):
             'rei lisa' : 'WAKE',
             'acorda lisa' : 'WAKE',
             'modo gestos' : 'MODO_GESTOS',
-            'modo cópia' : 'MODO_MIMICA',
+            'modo mímica' : 'MODO_MIMICA',
             'modo conversa' : 'MODO_CONVERSA',
             'modo desenho' : 'MODO_DESENHO',
             "modo atropelo" : "MODO_TROPELO",
@@ -105,11 +110,16 @@ class DetectorComandosDeVoz(Node):
 
     def estado_atual_sub_callback(self, msg):
         self.estado_atual_lisa = msg.data
-        if self.estado_atual_lisa == "MENU" and not self.ativo:
-            self.ativo = True
-            self.rec_.Reset()
-        elif self.estado_atual_lisa != "MENU" and self.ativo:
-            self.ativo = False
+
+        if self.estado_atual_lisa in ["MENU","MODO_SONECA"]:
+            if not self.ativo:
+                self.ativo = True
+                self.rec_.Reset()
+                self.get_logger().info("Microfone ativado")
+        else:
+            if self.ativo:
+                self.ativo = False
+                self.get_logger().info("Microfone desativado")
 
 
     def detect_voice_commands(self):        
@@ -135,13 +145,13 @@ class DetectorComandosDeVoz(Node):
                             command = self.commands_map_[key]
 
                             if command == "WAKE":
-                                if not self.acordado:
-                                    self.get_logger().info("Acordado, esperando comando.")
-                                    self.acordado = True
                                 if self.estado_atual_lisa == "MODO_SONECA":
-                                    self.send_tela_request("WAKE")
                                     self.controle_estados_request_.estado_desejado = "MENU"
                                     self.controle_estados_client_.call_async(self.controle_estados_request_)
+                                elif not self.acordado:
+                                    self.get_logger().info("Acordado, esperando comando.")
+                                    self.send_tela_request("happy")
+                                    self.acordado = True
                                 
                             if command != "WAKE" and self.acordado:
                                 self.get_logger().info(f"Comando recebido: {command}!")

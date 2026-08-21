@@ -29,10 +29,10 @@ def generate_launch_description():
         executable="modo_gestos"
     )
 
-    speech_to_text = Node(
-        package="lisa_pkg",
-        executable="speech_to_text"
-    )
+    # speech_to_text = Node(
+    #     package="lisa_pkg",
+    #     executable="speech_to_text"
+    # )
 
     detector_comandos_de_voz = Node(
         package="lisa_pkg",

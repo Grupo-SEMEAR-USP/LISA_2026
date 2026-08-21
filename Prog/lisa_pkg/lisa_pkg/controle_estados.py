@@ -14,7 +14,7 @@ Controle de Estados da LISA
 Mantém e controla o estado da LISA. 
 Processa mudanças de estado via requisição e publica o estado atual quando houver mudança de estado.
 
-    Servidor no serviço: /controle/estado_atual
+    Servidor no serviço: /controle/mudar_estado_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
             - request: string estado_desejado 
             - response: bool sucesso
