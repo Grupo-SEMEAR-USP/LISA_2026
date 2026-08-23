@@ -52,13 +52,14 @@ class ModoGestosNode(Node):
         # mapa (dicionário) que associa um gesto a um gif
         self.hand_gesture_request_map_ = {
             "heart" : "love",
-            "dislike" : "sad",
-            "one" : "angry",
             "like" : "happy",
-            "zero" : "star",
-            "two" : "party",
-            "three" : "dizzy",
-            "five" : "sad"
+            "one" : "please",
+            "two" : "dizzy",
+            "dislike" : "sad",
+            "ok" : "bombastic",
+            "rock" : "star",
+            "call" : "party",
+            "middle_finger" : "angry"
         }
         
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
@@ -69,10 +70,10 @@ class ModoGestosNode(Node):
             return
         else:
             hand_gesture = msg.data
-            if hand_gesture in self.hand_gesture_request_map_.keys():
-                if hand_gesture == "dislike":
-                    self.send_controle_estados_request("MENU")
-                    return
+            if hand_gesture == "three":
+                self.send_controle_estados_request("MENU")
+                return
+            elif hand_gesture in self.hand_gesture_request_map_.keys():
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
                 self.num_atual_de_requisicoes += 1
                 self.send_tela_request(gif_desejado)
