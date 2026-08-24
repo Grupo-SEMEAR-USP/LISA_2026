@@ -56,8 +56,17 @@ class ModoDesenhoNode(Node):
 
         self.current_frame = None
         self.current_gesture = None
+        self.last_gesture = None
         self.current_landmarks = None
         self.points_to_be_drawn = []
+        self.points_to_remove_on_release = 3
+        self.current_color = 0
+        self.color_list = [(0,0,255),(0,255,0),(255,0,0)]
+        self.current_color = 0
+
+        # Variáveis para forçar nomes únicos de janela
+        self.window_counter = 0
+        self.window_name = "Desenho"
 
         timer_period = 1/10 # 10 Hz
         self.timer_ = self.create_timer(timer_period, self.desenhar_na_tela)
@@ -75,22 +84,36 @@ class ModoDesenhoNode(Node):
         
         self.frame_height_, self.frame_width_, _ = frame.shape
 
-        if gesture == "three":
+        # comandos do modo desenho
+        if gesture == "four" and self.last_gesture != "four":
             self.desativar()
             return
+
+        if gesture == "three" and self.last_gesture != "three":
+            self.proxima_cor()
+
+        elif gesture == "two" and self.last_gesture != "two":
+            self.points_to_be_drawn.clear()
 
         elif gesture == "one" and landmarks is not None and len(landmarks) > 8:
             self.points_to_be_drawn.append(landmarks[8])
 
-        elif gesture == "two":
-            self.points_to_be_drawn.clear()
+        # remove o utimo ponto quando troca de one para outro, para evitar pontos errados na transição dos estados
+        if self.last_gesture == "one" and gesture != "one":
+            points_to_remove = min(self.points_to_remove_on_release, len(self.points_to_be_drawn))
+            if points_to_remove > 0:
+                del self.points_to_be_drawn[-points_to_remove:]
 
+        # atualiza ultimo gesto
+        self.last_gesture = gesture
+
+        # mostra o frame com o desenho
         for p in self.points_to_be_drawn:
-            cv2.circle(frame, (int(p.x),int(p.y)), 5, (0,0,255), -1)
-
+            cv2.circle(frame, (int(p.x),int(p.y)), 3, self.color_list[self.current_color], -1)
+        
         frame = cv2.resize(frame, (1920, 1080))
 
-        cv2.imshow("Desenho", frame)
+        cv2.imshow(self.window_name, frame)
 
         if cv2.waitKey(1) == ord('q'):
             pass
@@ -120,40 +143,57 @@ class ModoDesenhoNode(Node):
                 self.desativar()
 
 
+    def proxima_cor(self):
+        self.current_color += 1
+        if self.current_color >= len(self.color_list):
+            self.current_color = 0
+
+
     def ativar(self):
         self.current_gesture = None
         self.current_landmarks = None
-        # Garante que não tem nenhuma janela fantasma presa na memória do Linux
+        self.last_gesture = None
+        self.current_color = 0
+        
         cv2.destroyAllWindows()
-        cv2.waitKey(1)
-        # Cria a janela
-        cv2.namedWindow("Desenho", cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO)
-        # Mostra o primeiro frame gigante
+        cv2.waitKey(50)
+        
+        # O TRUQUE: Mudar o nome da janela a cada ativação
+        self.window_counter += 1
+        self.window_name = f"Desenho_{self.window_counter}"
+        
+        # Cria a janela com o novo nome
+        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+        
         if self.current_frame is not None:
-            frame_inicial_gigante = cv2.resize(self.current_frame, (1920, 1080))
-            cv2.imshow("Desenho", frame_inicial_gigante)
-        # CRÍTICO: Pausa um pouquinho maior (10ms) para dar tempo do Linux respirar
-        cv2.waitKey(10)
-        # Aplica o Fullscreen
-        cv2.setWindowProperty("Desenho", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            frame_inicial = cv2.resize(self.current_frame, (1920, 1080))
+            cv2.imshow(self.window_name, frame_inicial)
+            
+        cv2.waitKey(50)
+        
+        # Aplica o Fullscreen na janela recém-criada
+        cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         
         self.ativo = True
-        self.get_logger().info("## MODO DESENHO ATIVADO ##")
+        self.get_logger().info(f"## MODO DESENHO ATIVADO ({self.window_name}) ##")
 
 
     def desativar(self):
         try:
-            cv2.destroyWindow("Desenho")
-            # O PULO DO GATO: Rodar o waitKey em loop curto!
-            # Isso "drena" a fila de eventos da interface gráfica do Linux, 
-            # forçando ele a deletar a janela da memória completamente.
+            cv2.destroyWindow(self.window_name)
+            
+            # O seu pulo do gato continua aqui:
             for _ in range(5):
                 cv2.waitKey(1) 
                 
-        except Exception:
-            pass
+        except Exception as e:
+            self.get_logger().error(f"Erro ao fechar janela: {e}")
 
-        self.points_to_be_drawn.clear()    
+        self.points_to_be_drawn.clear()
+        self.last_gesture = None
+        self.current_gesture = None
+        self.current_landmarks = None
+        self.current_color = 0
         self.ativo = False
         self.send_controle_estados_request("MENU")
         self.get_logger().info("## MODO DESENHO DESATIVADO ##")

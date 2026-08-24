@@ -93,7 +93,7 @@ class DetectorGestosNode(Node):
         self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/landmarks", 10)
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'gesture_recognizer.task')
-
+        
         options = vision.GestureRecognizerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=self.model_path_),
             running_mode=vision.RunningMode.VIDEO,

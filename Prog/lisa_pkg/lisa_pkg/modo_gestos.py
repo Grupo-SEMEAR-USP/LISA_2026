@@ -70,7 +70,7 @@ class ModoGestosNode(Node):
             return
         else:
             hand_gesture = msg.data
-            if hand_gesture == "three":
+            if hand_gesture == "four":
                 self.send_controle_estados_request("MENU")
                 return
             elif hand_gesture in self.hand_gesture_request_map_.keys():
