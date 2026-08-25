@@ -25,7 +25,7 @@ Só detecta comandos específicos, porém é muito mais leve que o speech-to-tex
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 
 
-    Cliente no serviço: /controle/estado_atual
+    Cliente no serviço: /controle/mudar_estado_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
             - request: string estado_desejado 
             - response: bool sucesso

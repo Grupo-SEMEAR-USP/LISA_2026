@@ -16,27 +16,39 @@ def generate_launch_description():
 
     camera_publisher = Node(
         package="lisa_pkg",
-        executable="camera_publisher"
+        executable="camera_publisher",
+        parameters=[
+            {"fps": 10},
+            {"frame_w": 320},
+            {"frame_h": 240},
+            {"mostrar_camera": False}
+        ]
     )
 
     detector_gestos = Node(
         package="lisa_pkg",
-        executable="detector_gestos"
+        executable="detector_gestos",
+        parameters=[
+            {"mostrar_landmarks": False}
+        ]
+    )
+
+    detector_pose = Node(
+        package="lisa_pkg",
+        executable="detector_pose",
+        parameters=[
+            {"mostrar_landmarks": False}
+        ]
     )
     
-    modo_gestos = Node(
-        package="lisa_pkg",
-        executable="modo_gestos"
-    )
-
-    # speech_to_text = Node(
-    #     package="lisa_pkg",
-    #     executable="speech_to_text"
-    # )
-
     detector_comandos_de_voz = Node(
         package="lisa_pkg",
         executable="detector_comandos_de_voz"
+    )
+
+    modo_gestos = Node(
+        package="lisa_pkg",
+        executable="modo_gestos"
     )
 
     modo_desenho = Node(
@@ -48,9 +60,9 @@ def generate_launch_description():
     ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
     ld.add_action(detector_gestos)
-    ld.add_action(modo_gestos)
     ld.add_action(detector_comandos_de_voz)
-    #ld.add_action(speech_to_text)
+    ld.add_action(detector_pose)
+    ld.add_action(modo_gestos)
     ld.add_action(modo_desenho)
 
     return ld

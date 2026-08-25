@@ -6,6 +6,7 @@ from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na ms
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 
 import cv2
 
@@ -55,7 +56,7 @@ class CameraPublisherNode(Node):
         self.cap_.set(cv2.CAP_PROP_FPS, self.fps_)
         self.bridge_ = CvBridge()
 
-        self.publisher_ =  self.create_publisher(Image, "visao/frame", 10)
+        self.publisher_ =  self.create_publisher(Image, "visao/frame", qos_profile_sensor_data)
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 
@@ -102,7 +103,7 @@ class CameraPublisherNode(Node):
 
 
     def estado_atual_sub_callback(self,msg):
-        if msg.data in ["MODO_GESTOS", "MODO_DESENHO"]:
+        if msg.data in ["MODO_GESTOS", "MODO_DESENHO", "MODO_MIMICA"]:
             if not self.ativo:
                 self.ativo = True
         else:

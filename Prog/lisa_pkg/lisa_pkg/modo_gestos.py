@@ -6,6 +6,7 @@ from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 
 '''
 Modo Gestos da LISA
@@ -34,7 +35,7 @@ class ModoGestosNode(Node):
 
     def __init__(self):
         super().__init__("modo_gestos")
-        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, 10)
+        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, qos_profile_sensor_data)
 
         self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
@@ -71,7 +72,7 @@ class ModoGestosNode(Node):
         else:
             hand_gesture = msg.data
             if hand_gesture == "four":
-                self.send_controle_estados_request("MENU")
+                self.desativar()
                 return
             elif hand_gesture in self.hand_gesture_request_map_.keys():
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
@@ -96,6 +97,7 @@ class ModoGestosNode(Node):
 
     def desativar(self):
         self.ativo = False
+        self.send_controle_estados_request("MENU")
         self.get_logger().info("## MODO GESTOS DESATIVADO ##")
 
 

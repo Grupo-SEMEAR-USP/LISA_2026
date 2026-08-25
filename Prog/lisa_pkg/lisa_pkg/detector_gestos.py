@@ -7,6 +7,7 @@ from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
@@ -21,6 +22,9 @@ Detector de Gestos de Mão
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
 Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/5 do fps da câmera.
 
+    Parâmetros:
+        - mostrar_landmarks: mostra frame com landmarks detectados na tela
+
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 
 
@@ -30,7 +34,7 @@ Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a fre
     Tópico publicado: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
 
-    Tópico publicado: /visao/landmarks
+    Tópico publicado: /visao/hand_landmaks
         - Tipo da mensagem: geometry_msgs/msg/Polygon
 
 '''
@@ -71,7 +75,6 @@ class Hand():
         self.landmarks = None
         self.x_coords_, self.y_coords_ = [0.0], [0.0]
 
-
         if gesture.category_name:
             self.gesture_ = gesture.category_name.lower()
             self.score_ = gesture.score
@@ -88,9 +91,14 @@ class DetectorGestosNode(Node):
 
     def __init__(self):
         super().__init__("detector_gestos")
-        self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, 10)
-        self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", 10)
-        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/landmarks", 10)
+
+        self.declare_parameter("mostrar_landmarks", False)
+
+        self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, qos_profile_sensor_data)
+        self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", qos_profile_sensor_data)
+        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmaks", qos_profile_sensor_data)
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'gesture_recognizer.task')
         
@@ -114,8 +122,7 @@ class DetectorGestosNode(Node):
         self.current_gesture_ = "none"
         self.last_gesture_ = "none"
         self.two_handed_gestures_ = ["heart"]   # gestos que precisam ser detectados em duas mãos ao mesmo tempo (precisam ser simétricos)
-
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.ativo = False
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
@@ -124,11 +131,18 @@ class DetectorGestosNode(Node):
         if self.processing_:
             self.get_logger().warn("Um frame foi descartado pois outro ainda estava sendo processado.")
             return
+
+        if not self.ativo:
+            return
         
         self.processing_ = True
+        landmarks_to_draw = None
+        mostrar_landmarks = self.get_parameter("mostrar_landmarks").value
 
         try:
             frame = self.bridge_.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+            if mostrar_landmarks:
+                frame_to_show = frame.copy()
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
             
@@ -156,6 +170,7 @@ class DetectorGestosNode(Node):
                 # publica landmarks
                 if hand1.landmarks is not None:
                     self.publish_landmarks(hand1.landmarks)
+                    landmarks_to_draw = hand1.landmarks
     
             # 2 mãos detectadas
             elif num_detected_hands == 2:
@@ -216,8 +231,10 @@ class DetectorGestosNode(Node):
                 if hand1.landmarks is not None and hand2.landmarks is not None:
                     if hand1.box_.area_ >= hand2.box_.area_:
                         self.publish_landmarks(hand1.landmarks)
+                        landmarks_to_draw = hand1.landmarks 
                     else:
                         self.publish_landmarks(hand2.landmarks)
+                        landmarks_to_draw = hand2.landmarks
             
             # Atualiza contador
             if self.current_gesture_ == self.last_gesture_:
@@ -237,6 +254,13 @@ class DetectorGestosNode(Node):
 
             self.last_gesture_ = self.current_gesture_
 
+            if mostrar_landmarks:
+                if landmarks_to_draw is not None:
+                    frame_to_show = self.draw_hand_landmarks(frame_to_show, landmarks_to_draw)
+                
+                cv2.imshow("Detector de Gestos", frame_to_show)
+                cv2.waitKey(1)
+
         except Exception as e:
             self.get_logger().error(f"Erro durante o processamento do frame: {e}")
         finally:  
@@ -255,15 +279,34 @@ class DetectorGestosNode(Node):
 
 
     def estado_atual_sub_callback(self,msg):
-        if msg.data == "MODO_DESENHO":
-            # passa a publicar o gesto sempre que detectar, sem esperar por 5 frames seguidos, para sincronizar taxa de publicação com o fps da câmera
-            self.num_gesture_frames_ = 1    
+        if msg.data in ["MODO_DESENHO", "MODO_GESTOS"]:
+            if not self.ativo:
+                self.ativo = True
+            if msg.data == "MODO_DESENHO":
+                # passa a publicar o gesto sempre que detectar, sem esperar por 5 frames seguidos, para sincronizar taxa de publicação com o fps da câmera
+                self.num_gesture_frames_ = 1    
+            else:
+                self.num_gesture_frames_ = 5
         else:
-            self.num_gesture_frames_ = 5
+            if self.ativo:
+                self.ativo = False
 
+
+    def draw_hand_landmarks(self, image, landmarks):
+        pixel_landmarks = []
+        for lm in landmarks:
+            x = int(lm.x * self.frame_width_)
+            y = int(lm.y * self.frame_height_)
+            pixel_landmarks.append((x, y))
+
+        for point in pixel_landmarks:
+            cv2.circle(image, point, 4, (0, 0, 255), -1)
+
+        return image
 
     def destroy_node(self):
         self.detector_.close()
+        cv2.destroyAllWindows()
         super().destroy_node()
 
 

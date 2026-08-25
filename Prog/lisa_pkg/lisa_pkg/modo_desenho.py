@@ -6,6 +6,7 @@ from lisa_interfaces.srv import ControleEstados
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 
 import cv2
 
@@ -18,7 +19,7 @@ Junta as informações para permitir desenho na tela utilizando OpenCV.
     Tópico inscrito: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image
 
-    Tópico inscrito: /visao/landmarks
+    Tópico inscrito: /visao/hand_landmaks
         - Tipo da mensagem: geometry_msgs/msg/Polygon
 
     Tópico inscrito: /visao/gestos
@@ -38,9 +39,9 @@ class ModoDesenhoNode(Node):
 
     def __init__(self):
         super().__init__("modo_desenho")
-        self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, 10)
-        self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, 10)
-        self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/landmarks", self.landmarks_sub_cb, 10)
+        self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, qos_profile_sensor_data)
+        self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, qos_profile_sensor_data)
+        self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/hand_landmaks", self.landmarks_sub_cb, qos_profile_sensor_data)
         self.bridge_ = CvBridge()
 
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
