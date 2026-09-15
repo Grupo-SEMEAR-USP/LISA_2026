@@ -37,7 +37,7 @@ def generate_launch_description():
         package="lisa_pkg",
         executable="detector_pose",
         parameters=[
-            {"mostrar_landmarks": False}
+            {"mostrar_landmarks": True}
         ]
     )
     

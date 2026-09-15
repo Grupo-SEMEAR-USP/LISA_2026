@@ -13,8 +13,6 @@ from ament_index_python.packages import get_package_share_directory
 import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import vision
-from mediapipe.tasks.python.vision import drawing_utils
-from mediapipe.tasks.python.vision import drawing_styles
 import numpy as np
 import time
 import os
@@ -64,7 +62,6 @@ class DetectorPoseNode(Node):
 
         self.frame_height_ = 0
         self.frame_width_ = 0
-        self.str_msg_ = String()
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
         self.ativo = False   
 
@@ -118,8 +115,8 @@ class DetectorPoseNode(Node):
                     frame_to_show = self.draw_landmarks_on_image(frame_to_show, closest_pose_lm)
 
             if mostrar_landmarks:
-                    cv2.imshow("Detector de Pose", frame_to_show)
-                    cv2.waitKey(1)
+                cv2.imshow("Detector de Pose", frame_to_show)
+                cv2.waitKey(1)
 
         except Exception as e:
             self.get_logger().error(f"Erro durante o processamento do frame: {e}")
@@ -146,21 +143,61 @@ class DetectorPoseNode(Node):
             if self.ativo:
                 self.ativo = False    
 
-    def draw_landmarks_on_image(self, rgb_image, pose_landmarks):
-        annotated_image = np.copy(rgb_image)
+    def draw_landmarks_on_image(self, image, pose_landmarks):
 
-        pose_landmark_style = drawing_styles.get_default_pose_landmarks_style()
-        pose_connection_style = drawing_utils.DrawingSpec(color=(0, 255, 0), thickness=2)
+        annotated_image = np.copy(image)
 
-        drawing_utils.draw_landmarks(
-            image=annotated_image,
-            landmark_list=pose_landmarks,
-            connections=vision.PoseLandmarksConnections.POSE_LANDMARKS,
-            landmark_drawing_spec=pose_landmark_style,
-            connection_drawing_spec=pose_connection_style)
+        h, w, _ = annotated_image.shape
+
+        # Desenha os pontos
+        for lm in pose_landmarks:
+            x = int(lm.x * w)
+            y = int(lm.y * h)
+
+            cv2.circle(
+                annotated_image,
+                (x, y),
+                4,
+                (0, 255, 0),
+                -1
+            )
+
+        # Conexões da pose
+        connections = [
+            (11, 12),  # ombros
+            (11, 13), (13, 15),  # braço esquerdo
+            (12, 14), (14, 16),  # braço direito
+            (11, 23), (12, 24),  # tronco
+            (23, 24),  # quadril
+            (23, 25), (25, 27),  # perna esquerda
+            (24, 26), (26, 28),  # perna direita
+            (27, 29), (29, 31),  # pé esquerdo
+            (28, 30), (30, 32),  # pé direito
+        ]
+
+        for start, end in connections:
+
+            if start >= len(pose_landmarks) or end >= len(pose_landmarks):
+                continue
+
+            p1 = pose_landmarks[start]
+            p2 = pose_landmarks[end]
+
+            x1 = int(p1.x * w)
+            y1 = int(p1.y * h)
+
+            x2 = int(p2.x * w)
+            y2 = int(p2.y * h)
+
+            cv2.line(
+                annotated_image,
+                (x1, y1),
+                (x2, y2),
+                (0, 255, 0),
+                2
+            )
 
         return annotated_image
-
 
     def destroy_node(self):
         self.detector_.close()
