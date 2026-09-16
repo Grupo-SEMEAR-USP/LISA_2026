@@ -1,0 +1,31 @@
+services:
+  lisa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lisa:latest
+    container_name: lisa
+    stdin_open: true   # necessario pra usar o terminal interativo (docker compose exec)
+    tty: true
+
+    # --- rede: host permite que o assistente de voz fale com o
+    # Ollama rodando no host (localhost) sem configuracao extra ---
+    network_mode: host
+
+    # --- variaveis de ambiente ---
+    environment:
+      - DISPLAY=${DISPLAY}                    # repassa o display do host pro X11 funcionar
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=0
+
+    # --- dispositivos de hardware: microfone e camera ---
+    devices:
+      - /dev/snd:/dev/snd        # placa de audio (microfone e alto-falante)
+      - /dev/video0:/dev/video0  # camera (ajuste o numero se sua webcam for /dev/video1, etc)
+
+    # --- volumes: X11 (telas) e persistencia de configuracao de audio ---
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw   # necessario pro mpv e opencv abrirem janelas
+      - ~/.asoundrc:/root/.asoundrc:ro     # configuracao do ALSA, se voce tiver uma customizada
+
+    privileged: true   # necessario pra acesso confiavel a audio/video em alguns setups
