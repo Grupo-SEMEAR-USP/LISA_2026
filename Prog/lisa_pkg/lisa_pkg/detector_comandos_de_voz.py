@@ -93,11 +93,35 @@ class DetectorComandosDeVoz(Node):
 
         try:
             self.audio_ = pyaudio.PyAudio()
-            self.stream_ = self.audio_.open(format=pyaudio.paInt16,
-                                          channels=1,
-                                          rate=16000,
-                                          input=True,
-                                          frames_per_buffer=1024)
+
+            input_device_index = None
+
+            for i in range(self.audio_.get_device_count()):
+                info = self.audio_.get_device_info_by_index(i)
+
+                if info["maxInputChannels"] > 0:
+                    if int(info["defaultSampleRate"]) == 16000:
+                        input_device_index = i
+                        self.get_logger().info(
+                            f"Microfone selecionado: [{i}] {info['name']}"
+                        )
+                        break
+
+            if input_device_index is None:
+                self.get_logger().error(
+                    "Nenhum dispositivo de entrada com taxa padrão de 16000 Hz foi encontrado."
+                )
+                return
+
+            self.stream_ = self.audio_.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=16000,
+                input=True,
+                input_device_index=input_device_index,
+                frames_per_buffer=1024
+            )
+
             self.stream_.start_stream()
         except Exception as e:
             self.get_logger().error(f"Falha ao abrir stream de áudio (PyAudio): {e}")
