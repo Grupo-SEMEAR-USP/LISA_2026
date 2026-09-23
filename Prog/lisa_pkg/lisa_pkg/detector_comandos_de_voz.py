@@ -25,7 +25,7 @@ class DetectorComandosDeVoz(Node):
         # ============================================================
 
         self.timer_period = 0.03  # ~33 Hz
-        self.audio_device_index = 8
+        self.audio_device_index = 9
         self.sample_rate = 16000
         self.frames_per_buffer = 1024
 
@@ -157,38 +157,160 @@ class DetectorComandosDeVoz(Node):
 
         self.audio_ = None
         self.stream_ = None
+        self.audio_device_index = None
 
         try:
             self.audio_ = pyaudio.PyAudio()
+
+            self.get_logger().info(
+                "Procurando dispositivo de entrada compatível..."
+            )
+
+            # ------------------------------------------------------------
+            # Lista dispositivos de entrada reais
+            # ------------------------------------------------------------
+
+            for i in range(self.audio_.get_device_count()):
+
+                info = self.audio_.get_device_info_by_index(i)
+
+                name = info["name"]
+                channels = int(info["maxInputChannels"])
+                rate = int(info["defaultSampleRate"])
+
+                # Ignora dispositivos que não possuem entrada
+                if channels <= 0:
+                    continue
+
+                self.get_logger().info(
+                    f"Entrada encontrada: "
+                    f"[{i}] {name} | "
+                    f"canais={channels} | "
+                    f"taxa={rate} Hz"
+                )
+
+                # --------------------------------------------------------
+                # Prioridade 1:
+                # dispositivo DMIC16kHz
+                # --------------------------------------------------------
+
+                if (
+                    "DMIC16kHz" in name
+                    and channels >= 1
+                ):
+                    try:
+
+                        supported = self.audio_.is_format_supported(
+                            16000,
+                            input_device=i,
+                            input_channels=1,
+                            input_format=pyaudio.paInt16
+                        )
+
+                        if supported:
+
+                            self.audio_device_index = i
+
+                            self.get_logger().info(
+                                f"Microfone selecionado: "
+                                f"[{i}] {name} | "
+                                f"canais: {channels} | "
+                                f"taxa padrão: {rate} Hz"
+                            )
+
+                            break
+
+                    except Exception as e:
+
+                        self.get_logger().debug(
+                            f"Dispositivo [{i}] não aceita 16 kHz: {e}"
+                        )
+
+            # ------------------------------------------------------------
+            # Prioridade 2:
+            # qualquer entrada que aceite 16 kHz
+            # ------------------------------------------------------------
+
+            if self.audio_device_index is None:
+
+                for i in range(self.audio_.get_device_count()):
+
+                    info = self.audio_.get_device_info_by_index(i)
+
+                    channels = int(info["maxInputChannels"])
+
+                    if channels <= 0:
+                        continue
+
+                    try:
+
+                        supported = self.audio_.is_format_supported(
+                            16000,
+                            input_device=i,
+                            input_channels=1,
+                            input_format=pyaudio.paInt16
+                        )
+
+                        if supported:
+
+                            self.audio_device_index = i
+
+                            self.get_logger().info(
+                                f"Microfone selecionado por compatibilidade: "
+                                f"[{i}] {info['name']} | "
+                                f"canais: {channels} | "
+                                f"taxa padrão: "
+                                f"{info['defaultSampleRate']} Hz"
+                            )
+
+                            break
+
+                    except Exception:
+                        continue
+
+            # ------------------------------------------------------------
+            # Nenhum microfone encontrado
+            # ------------------------------------------------------------
+
+            if self.audio_device_index is None:
+
+                self.get_logger().error(
+                    "Nenhum dispositivo de entrada compatível "
+                    "com 16 kHz foi encontrado."
+                )
+
+                return
+
+            # ------------------------------------------------------------
+            # Abre o stream
+            # ------------------------------------------------------------
 
             info = self.audio_.get_device_info_by_index(
                 self.audio_device_index
             )
 
-            self.get_logger().info(
-                f"Microfone selecionado: "
-                f"[{self.audio_device_index}] {info['name']} | "
-                f"canais: {info['maxInputChannels']} | "
-                f"taxa: {info['defaultSampleRate']} Hz"
-            )
-
             self.stream_ = self.audio_.open(
                 format=pyaudio.paInt16,
                 channels=1,
-                rate=self.sample_rate,
+                rate=16000,
                 input=True,
                 input_device_index=self.audio_device_index,
-                frames_per_buffer=self.frames_per_buffer
+                frames_per_buffer=1024
             )
 
             self.stream_.start_stream()
 
+            self.get_logger().info(
+                "Stream de áudio iniciado com sucesso."
+            )
+
         except Exception as e:
+
             self.get_logger().error(
                 f"Falha ao abrir stream de áudio: {e}"
             )
-            return
 
+            return
         # ============================================================
         # TIMER DE CAPTURA
         # ============================================================
