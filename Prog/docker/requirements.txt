@@ -1,0 +1,11 @@
+numpy==1.26.4
+
+opencv-contrib-python==4.10.0.84
+
+mediapipe==0.10.32
+
+vosk==0.3.45
+
+PyAudio==0.2.14
+
+Unidecode==1.4.0

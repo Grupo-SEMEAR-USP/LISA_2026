@@ -1,0 +1,34 @@
+services:
+
+  lisa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: lisa_2026
+
+    network_mode: host
+
+    environment:
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+      XAUTHORITY: /tmp/.Xauthority
+      PULSE_SERVER: unix:/tmp/pulse/native
+
+    volumes:
+
+      - ./Prog:/lisa_ws/src
+
+      # X11
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/tmp/.Xauthority:rw
+
+      # PulseAudio / PipeWire
+      - /run/user/${USER_ID}/pulse:/tmp/pulse
+
+    privileged: true
+
+    stdin_open: true
+    tty: true
+
+    restart: "no"
