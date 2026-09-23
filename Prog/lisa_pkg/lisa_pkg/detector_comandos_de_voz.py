@@ -10,9 +10,12 @@ from ament_index_python.packages import get_package_share_directory
 from unidecode import unidecode
 from vosk import Model, KaldiRecognizer
 
-import pyaudio
 import json
 import os
+import subprocess
+import threading
+import queue
+import time
 
 
 class DetectorComandosDeVoz(Node):
@@ -25,8 +28,11 @@ class DetectorComandosDeVoz(Node):
         # ============================================================
 
         self.timer_period = 0.03  # ~33 Hz
-        self.audio_device_index = 9
+
         self.sample_rate = 16000
+        self.channels = 1
+        self.bytes_per_sample = 2  # s16le = 16 bits = 2 bytes
+
         self.frames_per_buffer = 1024
 
         # ============================================================
@@ -37,6 +43,33 @@ class DetectorComandosDeVoz(Node):
 
         self.acordado = False
         self.ativo = True
+
+        # ============================================================
+        # CONTROLE DO ÁUDIO
+        # ============================================================
+
+        self.parec_process_ = None
+
+        self.audio_queue_ = queue.Queue(
+            maxsize=50
+        )
+
+        self.audio_thread_ = None
+
+        self.audio_thread_running_ = False
+
+        self.audio_lock_ = threading.Lock()
+
+        self.default_source_ = None
+
+        self.last_source_check_time_ = 0.0
+
+        # Verifica o microfone padrão periodicamente.
+        # Não precisa consultar pactl a cada ciclo do ROS.
+        self.source_check_interval = 2.0
+
+        # Evento usado para parar a thread de áudio.
+        self.stop_audio_event_ = threading.Event()
 
         # ============================================================
         # COMANDOS
@@ -118,16 +151,21 @@ class DetectorComandosDeVoz(Node):
         self.rec_ = None
 
         try:
+
             self.get_logger().info(
                 "Carregando modelo Vosk..."
             )
 
-            self.model_ = Model(self.model_path_)
+            self.model_ = Model(
+                self.model_path_
+            )
 
         except Exception as e:
+
             self.get_logger().error(
                 f"Falha ao carregar modelo Vosk: {e}"
             )
+
             return
 
         # ============================================================
@@ -138,7 +176,9 @@ class DetectorComandosDeVoz(Node):
             self.commands_map_.keys()
         )
 
-        grammar_list = commands_to_be_detected + ["[unk]"]
+        grammar_list = commands_to_be_detected + [
+            "[unk]"
+        ]
 
         grammar = json.dumps(
             grammar_list,
@@ -152,167 +192,47 @@ class DetectorComandosDeVoz(Node):
         )
 
         # ============================================================
-        # PYAudio
+        # MICROFONE PADRÃO DO SISTEMA
         # ============================================================
 
-        self.audio_ = None
-        self.stream_ = None
-        self.audio_device_index = None
+        self.get_logger().info(
+            "Inicializando captura pelo microfone padrão "
+            "do sistema..."
+        )
 
-        try:
-            self.audio_ = pyaudio.PyAudio()
+        default_source = self.get_default_source()
 
-            self.get_logger().info(
-                "Procurando dispositivo de entrada compatível..."
-            )
-
-            # ------------------------------------------------------------
-            # Lista dispositivos de entrada reais
-            # ------------------------------------------------------------
-
-            for i in range(self.audio_.get_device_count()):
-
-                info = self.audio_.get_device_info_by_index(i)
-
-                name = info["name"]
-                channels = int(info["maxInputChannels"])
-                rate = int(info["defaultSampleRate"])
-
-                # Ignora dispositivos que não possuem entrada
-                if channels <= 0:
-                    continue
-
-                self.get_logger().info(
-                    f"Entrada encontrada: "
-                    f"[{i}] {name} | "
-                    f"canais={channels} | "
-                    f"taxa={rate} Hz"
-                )
-
-                # --------------------------------------------------------
-                # Prioridade 1:
-                # dispositivo DMIC16kHz
-                # --------------------------------------------------------
-
-                if (
-                    "DMIC16kHz" in name
-                    and channels >= 1
-                ):
-                    try:
-
-                        supported = self.audio_.is_format_supported(
-                            16000,
-                            input_device=i,
-                            input_channels=1,
-                            input_format=pyaudio.paInt16
-                        )
-
-                        if supported:
-
-                            self.audio_device_index = i
-
-                            self.get_logger().info(
-                                f"Microfone selecionado: "
-                                f"[{i}] {name} | "
-                                f"canais: {channels} | "
-                                f"taxa padrão: {rate} Hz"
-                            )
-
-                            break
-
-                    except Exception as e:
-
-                        self.get_logger().debug(
-                            f"Dispositivo [{i}] não aceita 16 kHz: {e}"
-                        )
-
-            # ------------------------------------------------------------
-            # Prioridade 2:
-            # qualquer entrada que aceite 16 kHz
-            # ------------------------------------------------------------
-
-            if self.audio_device_index is None:
-
-                for i in range(self.audio_.get_device_count()):
-
-                    info = self.audio_.get_device_info_by_index(i)
-
-                    channels = int(info["maxInputChannels"])
-
-                    if channels <= 0:
-                        continue
-
-                    try:
-
-                        supported = self.audio_.is_format_supported(
-                            16000,
-                            input_device=i,
-                            input_channels=1,
-                            input_format=pyaudio.paInt16
-                        )
-
-                        if supported:
-
-                            self.audio_device_index = i
-
-                            self.get_logger().info(
-                                f"Microfone selecionado por compatibilidade: "
-                                f"[{i}] {info['name']} | "
-                                f"canais: {channels} | "
-                                f"taxa padrão: "
-                                f"{info['defaultSampleRate']} Hz"
-                            )
-
-                            break
-
-                    except Exception:
-                        continue
-
-            # ------------------------------------------------------------
-            # Nenhum microfone encontrado
-            # ------------------------------------------------------------
-
-            if self.audio_device_index is None:
-
-                self.get_logger().error(
-                    "Nenhum dispositivo de entrada compatível "
-                    "com 16 kHz foi encontrado."
-                )
-
-                return
-
-            # ------------------------------------------------------------
-            # Abre o stream
-            # ------------------------------------------------------------
-
-            info = self.audio_.get_device_info_by_index(
-                self.audio_device_index
-            )
-
-            self.stream_ = self.audio_.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=16000,
-                input=True,
-                input_device_index=self.audio_device_index,
-                frames_per_buffer=1024
-            )
-
-            self.stream_.start_stream()
-
-            self.get_logger().info(
-                "Stream de áudio iniciado com sucesso."
-            )
-
-        except Exception as e:
+        if default_source is None:
 
             self.get_logger().error(
-                f"Falha ao abrir stream de áudio: {e}"
+                "Não foi possível identificar o microfone "
+                "padrão do sistema."
             )
 
             return
+
+        self.default_source_ = default_source
+
+        self.get_logger().info(
+            f"Microfone padrão detectado: "
+            f"{self.default_source_}"
+        )
+
         # ============================================================
-        # TIMER DE CAPTURA
+        # THREAD DE ÁUDIO
+        # ============================================================
+
+        self.audio_thread_running_ = True
+
+        self.audio_thread_ = threading.Thread(
+            target=self.audio_capture_loop,
+            daemon=True
+        )
+
+        self.audio_thread_.start()
+
+        # ============================================================
+        # TIMER DE PROCESSAMENTO
         # ============================================================
 
         self.timer_ = self.create_timer(
@@ -325,8 +245,385 @@ class DetectorComandosDeVoz(Node):
         )
 
         self.get_logger().info(
-            f"Nó '{self.get_name()}' inicializado com sucesso."
+            f"Nó '{self.get_name()}' "
+            "inicializado com sucesso."
         )
+
+    # ================================================================
+    # MICROFONE PADRÃO
+    # ================================================================
+
+    def get_default_source(self):
+
+        try:
+
+            result = subprocess.run(
+                [
+                    "pactl",
+                    "get-default-source"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=2.0
+            )
+
+            if result.returncode != 0:
+
+                self.get_logger().error(
+                    "pactl não conseguiu obter "
+                    "o microfone padrão."
+                )
+
+                return None
+
+            source = result.stdout.strip()
+
+            if not source:
+
+                self.get_logger().error(
+                    "pactl retornou um microfone padrão vazio."
+                )
+
+                return None
+
+            return source
+
+        except Exception as e:
+
+            self.get_logger().error(
+                f"Erro ao consultar microfone padrão: {e}"
+            )
+
+            return None
+
+    # ================================================================
+    # INICIA PAREC
+    # ================================================================
+
+    def start_parec(self):
+
+        with self.audio_lock_:
+
+            # --------------------------------------------------------
+            # Se já existe um processo, encerra primeiro.
+            # --------------------------------------------------------
+
+            if self.parec_process_ is not None:
+
+                self.stop_parec_locked()
+
+            # --------------------------------------------------------
+            # Descobre novamente o microfone padrão.
+            # --------------------------------------------------------
+
+            source = self.get_default_source()
+
+            if source is None:
+
+                self.get_logger().error(
+                    "Não foi possível obter o "
+                    "microfone padrão."
+                )
+
+                return False
+
+            self.default_source_ = source
+
+            self.get_logger().info(
+                f"Iniciando captura do microfone padrão: "
+                f"{source}"
+            )
+
+            # --------------------------------------------------------
+            # Comando parec
+            # --------------------------------------------------------
+
+            command = [
+                "parec",
+
+                "--device",
+                "@DEFAULT_SOURCE@",
+
+                "--format",
+                "s16le",
+
+                "--rate",
+                str(self.sample_rate),
+
+                "--channels",
+                str(self.channels),
+
+                "--latency-msec",
+                "30",
+            ]
+
+            try:
+
+                self.parec_process_ = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=0
+                )
+
+                self.get_logger().info(
+                    "Captura de áudio iniciada."
+                )
+
+                return True
+
+            except Exception as e:
+
+                self.get_logger().error(
+                    f"Falha ao iniciar parec: {e}"
+                )
+
+                self.parec_process_ = None
+
+                return False
+
+    # ================================================================
+    # PARA PAREC
+    # ================================================================
+
+    def stop_parec_locked(self):
+
+        if self.parec_process_ is None:
+            return
+
+        process = self.parec_process_
+
+        self.parec_process_ = None
+
+        try:
+
+            if process.poll() is None:
+
+                process.terminate()
+
+                try:
+
+                    process.wait(
+                        timeout=1.0
+                    )
+
+                except subprocess.TimeoutExpired:
+
+                    process.kill()
+                    process.wait()
+
+        except Exception as e:
+
+            self.get_logger().debug(
+                f"Erro ao encerrar parec: {e}"
+            )
+
+        finally:
+
+            try:
+
+                if process.stdout is not None:
+                    process.stdout.close()
+
+            except Exception:
+                pass
+
+            try:
+
+                if process.stderr is not None:
+                    process.stderr.close()
+
+            except Exception:
+                pass
+
+    # ================================================================
+    # LOOP DE CAPTURA DE ÁUDIO
+    # ================================================================
+
+    def audio_capture_loop(self):
+
+        while self.audio_thread_running_:
+
+            # --------------------------------------------------------
+            # Garante que o parec esteja rodando.
+            # --------------------------------------------------------
+
+            if self.parec_process_ is None:
+
+                if not self.start_parec():
+
+                    time.sleep(1.0)
+
+                    continue
+
+            process = self.parec_process_
+
+            if process is None:
+                continue
+
+            try:
+
+                # ====================================================
+                # TAMANHO DO BLOCO
+                # ====================================================
+
+                bytes_to_read = (
+                    self.frames_per_buffer
+                    * self.channels
+                    * self.bytes_per_sample
+                )
+
+                data = process.stdout.read(
+                    bytes_to_read
+                )
+
+                # ====================================================
+                # PAREC ENCERRADO
+                # ====================================================
+
+                if not data:
+
+                    if self.audio_thread_running_:
+
+                        self.get_logger().warning(
+                            "parec encerrou a captura. "
+                            "Tentando reiniciar..."
+                        )
+
+                    with self.audio_lock_:
+                        self.stop_parec_locked()
+
+                    time.sleep(0.5)
+
+                    continue
+
+                # ====================================================
+                # COLOCA O ÁUDIO NA FILA
+                # ====================================================
+
+                try:
+
+                    self.audio_queue_.put_nowait(
+                        data
+                    )
+
+                except queue.Full:
+
+                    # Se o processamento ficar atrasado,
+                    # descarta o bloco mais antigo para evitar
+                    # acumular latência.
+                    try:
+
+                        self.audio_queue_.get_nowait()
+
+                    except queue.Empty:
+                        pass
+
+                    try:
+
+                        self.audio_queue_.put_nowait(
+                            data
+                        )
+
+                    except queue.Full:
+                        pass
+
+            except Exception as e:
+
+                if self.audio_thread_running_:
+
+                    self.get_logger().error(
+                        f"Erro na captura de áudio: {e}"
+                    )
+
+                with self.audio_lock_:
+                    self.stop_parec_locked()
+
+                time.sleep(0.5)
+
+    # ================================================================
+    # VERIFICA MUDANÇA DO MICROFONE PADRÃO
+    # ================================================================
+
+    def check_default_source(self):
+
+        now = time.monotonic()
+
+        if (
+            now - self.last_source_check_time_
+            < self.source_check_interval
+        ):
+            return
+
+        self.last_source_check_time_ = now
+
+        current_source = self.get_default_source()
+
+        if current_source is None:
+            return
+
+        # ------------------------------------------------------------
+        # Primeiro valor
+        # ------------------------------------------------------------
+
+        if self.default_source_ is None:
+
+            self.default_source_ = current_source
+
+            return
+
+        # ------------------------------------------------------------
+        # O microfone padrão mudou
+        # ------------------------------------------------------------
+
+        if current_source != self.default_source_:
+
+            old_source = self.default_source_
+
+            self.default_source_ = current_source
+
+            self.get_logger().info(
+                "Microfone padrão alterado:"
+            )
+
+            self.get_logger().info(
+                f"  Anterior: {old_source}"
+            )
+
+            self.get_logger().info(
+                f"  Atual:    {current_source}"
+            )
+
+            self.get_logger().info(
+                "Reiniciando captura de áudio..."
+            )
+
+            with self.audio_lock_:
+
+                self.stop_parec_locked()
+
+            # Limpa áudio antigo da fila
+            self.clear_audio_queue()
+
+            # Reseta o reconhecimento
+            if self.rec_ is not None:
+                self.rec_.Reset()
+
+    # ================================================================
+    # LIMPA FILA DE ÁUDIO
+    # ================================================================
+
+    def clear_audio_queue(self):
+
+        while True:
+
+            try:
+
+                self.audio_queue_.get_nowait()
+
+            except queue.Empty:
+
+                break
 
     # ================================================================
     # CALLBACK DO ESTADO ATUAL
@@ -337,14 +634,24 @@ class DetectorComandosDeVoz(Node):
         self.estado_atual_lisa = msg.data
 
         self.get_logger().debug(
-            f"Estado atual da LISA: {self.estado_atual_lisa}"
+            f"Estado atual da LISA: "
+            f"{self.estado_atual_lisa}"
         )
 
-        # Microfone só deve ficar ativo no MENU ou SONECA
-        if self.estado_atual_lisa in ["MENU", "MODO_SONECA"]:
+        # ------------------------------------------------------------
+        # Microfone ativo somente no MENU ou SONECA
+        # ------------------------------------------------------------
+
+        if self.estado_atual_lisa in [
+            "MENU",
+            "MODO_SONECA"
+        ]:
 
             if not self.ativo:
+
                 self.ativo = True
+
+                self.clear_audio_queue()
 
                 if self.rec_ is not None:
                     self.rec_.Reset()
@@ -356,7 +663,10 @@ class DetectorComandosDeVoz(Node):
         else:
 
             if self.ativo:
+
                 self.ativo = False
+
+                self.clear_audio_queue()
 
                 if self.rec_ is not None:
                     self.rec_.Reset()
@@ -371,132 +681,156 @@ class DetectorComandosDeVoz(Node):
 
     def detect_voice_commands(self):
 
-        # Se não estiver em um estado que aceita comandos,
+        # ------------------------------------------------------------
+        # Verifica se o microfone padrão mudou.
+        # ------------------------------------------------------------
+
+        self.check_default_source()
+
+        # ------------------------------------------------------------
+        # Se não estiver em estado que aceita comandos,
         # não processa áudio.
+        # ------------------------------------------------------------
+
         if not self.ativo:
             return
 
-        # Verifica se o stream existe
-        if self.stream_ is None:
-            return
+        # ------------------------------------------------------------
+        # Processa todos os blocos disponíveis.
+        # ------------------------------------------------------------
 
-        try:
+        while True:
 
-            # ========================================================
-            # LEITURA DO MICROFONE
-            # ========================================================
+            try:
 
-            data = self.stream_.read(
-                self.frames_per_buffer,
-                exception_on_overflow=False
-            )
+                data = self.audio_queue_.get_nowait()
 
-            # ========================================================
-            # VOSK
-            # ========================================================
+            except queue.Empty:
 
-            if not self.rec_.AcceptWaveform(data):
-                return
+                break
 
-            result = json.loads(
-                self.rec_.Result()
-            )
+            try:
 
-            text = result.get("text", "").strip()
+                # ====================================================
+                # VOSK
+                # ====================================================
 
-            if not text:
-                return
+                if not self.rec_.AcceptWaveform(data):
 
-            processed_text = unidecode(
-                text.lower()
-            )
-
-            self.get_logger().info(
-                f"Texto reconhecido: '{processed_text}'"
-            )
-
-            # ========================================================
-            # PROCURA PELO COMANDO
-            # ========================================================
-
-            for key, command in self.commands_map_.items():
-
-                key_normalized = unidecode(
-                    key.lower()
-                )
-
-                if key_normalized not in processed_text:
                     continue
 
+                result = json.loads(
+                    self.rec_.Result()
+                )
+
+                text = result.get(
+                    "text",
+                    ""
+                ).strip()
+
+                if not text:
+                    continue
+
+                processed_text = unidecode(
+                    text.lower()
+                )
+
+                self.get_logger().info(
+                    f"Texto reconhecido: "
+                    f"'{processed_text}'"
+                )
+
                 # ====================================================
-                # PALAVRA DE ATIVAÇÃO
+                # PROCURA PELO COMANDO
                 # ====================================================
 
-                if command == "WAKE":
+                for key, command in self.commands_map_.items():
 
-                    # Se estiver dormindo, acorda a LISA
-                    if self.estado_atual_lisa == "MODO_SONECA":
+                    key_normalized = unidecode(
+                        key.lower()
+                    )
+
+                    if key_normalized not in processed_text:
+                        continue
+
+                    # ================================================
+                    # PALAVRA DE ATIVAÇÃO
+                    # ================================================
+
+                    if command == "WAKE":
+
+                        # --------------------------------------------
+                        # Se estiver dormindo, acorda a LISA
+                        # --------------------------------------------
+
+                        if (
+                            self.estado_atual_lisa
+                            == "MODO_SONECA"
+                        ):
+
+                            self.get_logger().info(
+                                "Comando de despertar recebido."
+                            )
+
+                            self.controle_estados_request_.estado_desejado = (
+                                "MENU"
+                            )
+
+                            self.controle_estados_client_.call_async(
+                                self.controle_estados_request_
+                            )
+
+                            self.acordado = False
+
+                        # --------------------------------------------
+                        # Se estiver no MENU, acorda para receber
+                        # o próximo comando.
+                        # --------------------------------------------
+
+                        elif not self.acordado:
+
+                            self.get_logger().info(
+                                "LISA acordada. "
+                                "Esperando comando."
+                            )
+
+                            self.send_tela_request(
+                                "happy"
+                            )
+
+                            self.acordado = True
+
+                        break
+
+                    # ================================================
+                    # COMANDO DE MODO
+                    # ================================================
+
+                    elif self.acordado:
 
                         self.get_logger().info(
-                            "Comando de despertar recebido."
+                            f"Comando recebido: "
+                            f"{command}!"
                         )
 
-                        self.controle_estados_request_.estado_desejado = "MENU"
+                        self.controle_estados_request_.estado_desejado = (
+                            command
+                        )
 
                         self.controle_estados_client_.call_async(
                             self.controle_estados_request_
                         )
 
+                        # Volta a esperar pela palavra de ativação
                         self.acordado = False
 
-                    # Se estiver no MENU, acorda para receber comando
-                    elif not self.acordado:
+                        break
 
-                        self.get_logger().info(
-                            "LISA acordada. "
-                            "Esperando comando."
-                        )
+            except Exception as e:
 
-                        self.send_tela_request(
-                            "happy"
-                        )
-
-                        self.acordado = True
-
-                    break
-
-                # ====================================================
-                # COMANDO DE MODO
-                # ====================================================
-
-                elif self.acordado:
-
-                    self.get_logger().info(
-                        f"Comando recebido: {command}!"
-                    )
-
-                    self.controle_estados_request_.estado_desejado = command
-
-                    self.controle_estados_client_.call_async(
-                        self.controle_estados_request_
-                    )
-
-                    # Volta a esperar pela palavra de ativação
-                    self.acordado = False
-
-                    break
-
-        except IOError as e:
-
-            self.get_logger().error(
-                f"Erro de I/O no stream de áudio: {e}"
-            )
-
-        except Exception as e:
-
-            self.get_logger().error(
-                f"Erro durante reconhecimento de voz: {e}"
-            )
+                self.get_logger().error(
+                    f"Erro durante reconhecimento de voz: {e}"
+                )
 
     # ================================================================
     # CONTROLE DA TELA
@@ -506,7 +840,7 @@ class DetectorComandosDeVoz(Node):
 
         self.get_logger().info(
             f"Enviando requisição '{gif_desejado}' "
-            f"ao controle de tela."
+            "ao controle de tela."
         )
 
         self.tela_request_.gif_desejado = gif_desejado
@@ -525,31 +859,45 @@ class DetectorComandosDeVoz(Node):
             "Encerrando detector de comandos de voz..."
         )
 
-        try:
+        # ------------------------------------------------------------
+        # Para thread de áudio
+        # ------------------------------------------------------------
 
-            if self.stream_ is not None:
+        self.audio_thread_running_ = False
 
-                if self.stream_.is_active():
-                    self.stream_.stop_stream()
+        self.stop_audio_event_.set()
 
-                self.stream_.close()
+        # ------------------------------------------------------------
+        # Encerra parec
+        # ------------------------------------------------------------
 
-        except Exception as e:
+        with self.audio_lock_:
 
-            self.get_logger().error(
-                f"Erro ao fechar stream de áudio: {e}"
-            )
+            self.stop_parec_locked()
 
-        try:
+        # ------------------------------------------------------------
+        # Aguarda thread terminar
+        # ------------------------------------------------------------
 
-            if self.audio_ is not None:
-                self.audio_.terminate()
+        if self.audio_thread_ is not None:
 
-        except Exception as e:
+            try:
 
-            self.get_logger().error(
-                f"Erro ao finalizar PyAudio: {e}"
-            )
+                self.audio_thread_.join(
+                    timeout=2.0
+                )
+
+            except Exception as e:
+
+                self.get_logger().debug(
+                    f"Erro ao aguardar thread de áudio: {e}"
+                )
+
+        # ------------------------------------------------------------
+        # Limpa fila
+        # ------------------------------------------------------------
+
+        self.clear_audio_queue()
 
         super().destroy_node()
 
