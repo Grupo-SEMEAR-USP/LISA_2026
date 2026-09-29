@@ -34,7 +34,7 @@ Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a fre
     Tópico publicado: /visao/gestos
         - Tipo da mensagem: example_interfaces/msg/String
 
-    Tópico publicado: /visao/hand_landmaks
+    Tópico publicado: /visao/hand_landmarks
         - Tipo da mensagem: geometry_msgs/msg/Polygon
 
 '''
@@ -96,7 +96,7 @@ class DetectorGestosNode(Node):
 
         self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, qos_profile_sensor_data)
         self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", qos_profile_sensor_data)
-        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmaks", qos_profile_sensor_data)
+        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmarks", qos_profile_sensor_data)
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         self.bridge_ = CvBridge()

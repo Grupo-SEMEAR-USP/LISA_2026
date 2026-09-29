@@ -31,7 +31,7 @@ Processa o frame da câmera com mediapipe e publica os landmarks relativos à po
     Tópico inscrito: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 
 
-    Tópico publicado: /visao/pose_landmaks
+    Tópico publicado: /visao/pose_landmarks
         - Tipo da mensagem: geometry_msgs/msg/Polygon
 
 '''
@@ -44,7 +44,7 @@ class DetectorPoseNode(Node):
         self.declare_parameter("mostrar_landmarks", False)
 
         self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_pose, qos_profile_sensor_data)
-        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/pose_landmaks", qos_profile_sensor_data)
+        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/pose_landmarks", qos_profile_sensor_data)
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         self.bridge_ = CvBridge()
