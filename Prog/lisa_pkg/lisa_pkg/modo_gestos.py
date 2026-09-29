@@ -76,7 +76,6 @@ class ModoGestosNode(Node):
                 return
             elif hand_gesture in self.hand_gesture_request_map_.keys():
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
-                self.num_atual_de_requisicoes += 1
                 self.send_tela_request(gif_desejado)
 
 
@@ -103,7 +102,6 @@ class ModoGestosNode(Node):
 
     def ativar(self):
         self.ativo = True
-        self.num_atual_de_requisicoes = 0
         self.get_logger().info("## MODO GESTOS ATIVADO ##")
         self.send_tela_request("gestos")
 

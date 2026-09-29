@@ -6,6 +6,7 @@ from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
+import time
 
 '''
 Modo Aura
@@ -51,7 +52,8 @@ class ModoAuraNode(Node):
 
     def main_modo(self):
         self.send_tela_request("67")
-        self.send_controle_estados_request('MENU') # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
+        time.sleep(6) # espera o fim do gif
+        self.desativar() # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
 
 
     def send_tela_request(self, gif_desejado):

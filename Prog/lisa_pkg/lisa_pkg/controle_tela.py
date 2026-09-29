@@ -66,10 +66,28 @@ class ControleTelaNode(Node):
         self.last_request_time_ = time.time()
 
         if self.is_sleeping_:
-            self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (lisa está dormindo, acorde-a primeiro).")
+            self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA está dormindo, acorde-a primeiro).")
             response.sucesso = False
             return response
 
+        if request.gif_desejado == "sleep":
+            if not self.is_sleeping_:    
+                self.sleep()
+                response.sucesso = True
+            else:
+                self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA já está dormindo).")
+                response.sucesso = False    
+            return response
+
+        if request.gif_desejado == "wake_up":
+            if self.is_sleeping_:    
+                self.wake_up()
+                response.sucesso = True
+            else:
+                self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA não está dormindo).")
+                response.sucesso = False    
+            return response
+        
         response.sucesso = self.play_gif_once(request.gif_desejado)
         return response
 
@@ -151,11 +169,9 @@ class ControleTelaNode(Node):
             case "MENU":
                 if self.is_sleeping_:
                     self.wake_up()
-                # else:
-                #     self.play_gif_once("blink")
+                else:
+                    self.play_gif_once("blink")
 
-            case "MODO_SONECA":
-                self.sleep()
 
     def sleep(self):
         if self.is_sleeping_:

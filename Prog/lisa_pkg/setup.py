@@ -47,7 +47,8 @@ setup(
             "modo_gestos = lisa_pkg.modo_gestos:main",
             "modo_tropelo = lisa_pkg.modo_tropelo:main",
             "modo_aura = lisa_pkg.modo_aura:main",
-            "modo_lisa_ensina = lisa_pkg.modo_lisa_ensina:main"
+            "modo_lisa_ensina = lisa_pkg.modo_lisa_ensina:main",
+            "modo_soneca = lisa_pkg.modo_soneca:main"
         ],
     },
 )

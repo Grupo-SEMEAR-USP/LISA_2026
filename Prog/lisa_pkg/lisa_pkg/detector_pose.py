@@ -23,7 +23,7 @@ Detector de Pose
 Processa o frame da câmera com mediapipe e publica os landmarks relativos à pose, que inclui rosto, braços e tronco.
 
     Parâmetros:
-        - mostrar_landmarks: mostra frame com landmarks detectados na tela
+        - mostrar_landmarks: mostra frame com landmarks detectados na tela (padrão=False)
 
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 

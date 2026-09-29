@@ -23,7 +23,7 @@ Processa o frame da câmera com mediapipe e publica os gestos de mão que forem 
 Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/5 do fps da câmera.
 
     Parâmetros:
-        - mostrar_landmarks: mostra frame com landmarks detectados na tela
+        - mostrar_landmarks: mostra frame com landmarks detectados na tela (padrão=False)
 
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 

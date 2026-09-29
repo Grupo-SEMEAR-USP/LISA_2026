@@ -19,7 +19,7 @@ Publica a imagem da câmera.
         - fps: frames publicados por segundo (padrão=10)
         - frame_w: largura do frame (padrão=320)
         - frame_h: altura do frame (padrão=240)
-        - mostrar_camera: mostra imagem da câmera na tela (padrao=False)
+        - mostrar_camera: mostra imagem da câmera na tela (padrão=False)
 
     Tópico publicado: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 

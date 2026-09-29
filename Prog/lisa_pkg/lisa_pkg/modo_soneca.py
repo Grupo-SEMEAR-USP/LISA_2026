@@ -6,12 +6,13 @@ from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
+import time
 
 '''
-Modo Tropelo da LISA
+Modo Soneca
 
-TOCA O GIF DO TROPELO!!!
-Easter egg da lisa
+A Lisa dorme
+TODO: Abaixará o pescoço e os braços enquanto dorme
 
     Cliente no serviço: /controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
@@ -27,10 +28,10 @@ Easter egg da lisa
             - response: bool sucesso
 '''
 
-class ModoTropeloNode(Node):
+class ModoSonecaNode(Node):
 
     def __init__(self):
-        super().__init__("modo_tropelo")
+        super().__init__("modo_soneca")
 
         self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
@@ -49,9 +50,9 @@ class ModoTropeloNode(Node):
 
 
     def main_modo(self):
-        self.send_tela_request("tropelo")
-        self.desativar() # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
-
+        # por enquanto, só manda a tela dormir e o detector de voz é responsável por acordá-la
+        self.send_tela_request("sleep") 
+        # futuramente aqui ele enviará uma requisição para executar animação de dormir com os motores
 
     def send_tela_request(self, gif_desejado):
         self.get_logger().info(f"Enviando requisição '{gif_desejado}' ao controle de tela.")
@@ -60,7 +61,7 @@ class ModoTropeloNode(Node):
 
 
     def estado_atual_sub_callback(self,msg):
-        if msg.data == "MODO_TROPELO":
+        if msg.data == "MODO_SONECA":
             if not self.ativo:
                 self.ativar()
         else:
@@ -70,14 +71,14 @@ class ModoTropeloNode(Node):
 
     def desativar(self):
         self.ativo = False
-        self.send_controle_estados_request("MENU")
-        self.get_logger().info("## MODO TROPELO DESATIVADO ##")
+        #self.send_controle_estados_request("MENU") # Não pode voltar para o menu aqui, pois se isso ocorrer a lisa acorda
+        self.get_logger().info("## MODO SONECA DESATIVADO ##")
 
 
     def ativar(self):
         self.ativo = True
         self.num_atual_de_requisicoes = 0
-        self.get_logger().info("## MODO TROPELO ATIVADO ##")
+        self.get_logger().info("## MODO SONECA ATIVADO ##")
         self.main_modo()
 
 
@@ -89,7 +90,7 @@ class ModoTropeloNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ModoTropeloNode()
+    node = ModoSonecaNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

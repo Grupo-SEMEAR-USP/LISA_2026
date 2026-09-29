@@ -68,7 +68,8 @@ class ModoLisaEnsinaNode(Node):
         self.send_tela_request(gif_educativo)
         time.sleep(tempo_gif) #espera fim do gif educativo
         # volta para o menu
-        self.send_controle_estados_request('MENU') # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
+        self.desativar()
+
 
     def send_tela_request(self, gif_desejado):
         self.get_logger().info(f"Enviando requisição '{gif_desejado}' ao controle de tela.")
@@ -96,6 +97,7 @@ class ModoLisaEnsinaNode(Node):
         self.num_atual_de_requisicoes = 0
         self.get_logger().info("## MODO LISA-ENSINA ATIVADO ##")
         self.main_modo()
+
 
     def send_controle_estados_request(self, estado_desejado):
         self.get_logger().info(f"Enviando requisição '{estado_desejado}' ao controle de estados.")

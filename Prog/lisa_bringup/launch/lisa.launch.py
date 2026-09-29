@@ -71,6 +71,10 @@ def generate_launch_description():
         executable="modo_lisa_ensina"
     )
 
+    modo_soneca = Node(
+        package="lisa_pkg",
+        executable="modo_soneca"
+    )
 
     ld.add_action(controle_estados)
     ld.add_action(controle_tela)
@@ -83,5 +87,6 @@ def generate_launch_description():
     ld.add_action(modo_tropelo)
     ld.add_action(modo_aura)
     ld.add_action(modo_lisa_ensina)
+    ld.add_action(modo_soneca)
 
     return ld
