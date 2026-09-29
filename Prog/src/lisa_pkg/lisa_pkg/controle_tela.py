@@ -65,11 +65,6 @@ class ControleTelaNode(Node):
 
         self.last_request_time_ = time.time()
 
-        if self.is_sleeping_:
-            self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA está dormindo, acorde-a primeiro).")
-            response.sucesso = False
-            return response
-
         if request.gif_desejado == "sleep":
             if not self.is_sleeping_:    
                 self.sleep()
@@ -79,7 +74,7 @@ class ControleTelaNode(Node):
                 response.sucesso = False    
             return response
 
-        if request.gif_desejado == "wake_up":
+        elif request.gif_desejado == "wake_up":
             if self.is_sleeping_:    
                 self.wake_up()
                 response.sucesso = True
@@ -87,9 +82,15 @@ class ControleTelaNode(Node):
                 self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA não está dormindo).")
                 response.sucesso = False    
             return response
-        
-        response.sucesso = self.play_gif_once(request.gif_desejado)
-        return response
+
+        elif self.is_sleeping_:
+            self.get_logger().info(f"Requisição '{request.gif_desejado}' negada (LISA está dormindo, acorde-a primeiro).")
+            response.sucesso = False
+            return response
+
+        else:
+            response.sucesso = self.play_gif_once(request.gif_desejado)
+            return response
 
 
     def estado_atual_sub_callback(self,msg):

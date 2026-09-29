@@ -34,6 +34,12 @@ class ModoDesenhoNode(ModoBaseNode):
     def __init__(self):
         super().__init__("modo_desenho")
 
+        self.declare_parameter("display_width", 800)
+        self.declare_parameter("display_height", 480)
+
+        self.display_width = self.get_parameter("display_width").value
+        self.display_height = self.get_parameter("display_height").value
+
         self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, qos_profile_sensor_data)
         self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, qos_profile_sensor_data)
         self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/hand_landmarks", self.landmarks_sub_cb, qos_profile_sensor_data)
@@ -98,7 +104,7 @@ class ModoDesenhoNode(ModoBaseNode):
         for p in self.points_to_be_drawn:
             cv2.circle(frame, (int(p.x),int(p.y)), 3, self.color_list[self.current_color], -1)
         
-        frame = cv2.resize(frame, (1920, 1080))
+        frame = cv2.resize(frame, (self.display_width, self.display_height))
 
         cv2.imshow(self.window_name, frame)
 

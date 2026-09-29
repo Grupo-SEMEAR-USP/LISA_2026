@@ -23,7 +23,7 @@ class ModoTropeloNode(ModoBaseNode):
         self.send_tela_request("tropelo")
         time.sleep(2)
         self.desativar() 
-        self.send_tela_request("MENU")
+        self.send_controle_estados_request("MENU")
 
 
 def main(args=None):

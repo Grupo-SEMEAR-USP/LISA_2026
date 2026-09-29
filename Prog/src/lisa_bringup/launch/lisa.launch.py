@@ -37,7 +37,7 @@ def generate_launch_description():
         package="lisa_pkg",
         executable="detector_pose",
         parameters=[
-            {"mostrar_landmarks": True}
+            {"mostrar_landmarks": False}
         ]
     )
     
@@ -53,7 +53,11 @@ def generate_launch_description():
 
     modo_desenho = Node(
         package="lisa_pkg",
-        executable="modo_desenho"
+        executable="modo_desenho",
+        parameters=[
+            {"display_width": 800},
+            {"display_height" : 480}
+        ]
     )
 
     modo_tropelo = Node(
