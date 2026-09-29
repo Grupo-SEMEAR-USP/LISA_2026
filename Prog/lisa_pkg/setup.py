@@ -44,7 +44,10 @@ setup(
             "detector_comandos_de_voz = lisa_pkg.detector_comandos_de_voz:main",
             "detector_pose = lisa_pkg.detector_pose:main",
             "modo_desenho = lisa_pkg.modo_desenho:main",
-            "modo_gestos = lisa_pkg.modo_gestos:main"
+            "modo_gestos = lisa_pkg.modo_gestos:main",
+            "modo_tropelo = lisa_pkg.modo_tropelo:main",
+            "modo_aura = lisa_pkg.modo_aura:main",
+            "modo_lisa_ensina = lisa_pkg.modo_lisa_ensina:main"
         ],
     },
 )

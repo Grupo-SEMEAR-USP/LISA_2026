@@ -56,6 +56,22 @@ def generate_launch_description():
         executable="modo_desenho"
     )
 
+    modo_tropelo = Node(
+        package="lisa_pkg",
+        executable="modo_tropelo"
+    )
+
+    modo_aura = Node(
+        package="lisa_pkg",
+        executable="modo_aura"
+    )
+
+    modo_lisa_ensina = Node(
+        package="lisa_pkg",
+        executable="modo_lisa_ensina"
+    )
+
+
     ld.add_action(controle_estados)
     ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
@@ -64,5 +80,8 @@ def generate_launch_description():
     ld.add_action(detector_pose)
     ld.add_action(modo_gestos)
     ld.add_action(modo_desenho)
+    ld.add_action(modo_tropelo)
+    ld.add_action(modo_aura)
+    ld.add_action(modo_lisa_ensina)
 
     return ld

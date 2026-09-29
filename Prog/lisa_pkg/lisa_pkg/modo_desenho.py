@@ -3,15 +3,17 @@ from cv_bridge import CvBridge
 from example_interfaces.msg import String
 from geometry_msgs.msg import Point32, Polygon
 from lisa_interfaces.srv import ControleEstados
+from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+import time
 
 import cv2
 
 '''
-Modo Desenho da LISA
+Modo Desenho
 
 Recebe frame da câmera e resultados dos nós de processamento de visão.
 Junta as informações para permitir desenho na tela utilizando OpenCV.
@@ -27,8 +29,13 @@ Junta as informações para permitir desenho na tela utilizando OpenCV.
 
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 
-        
-    Cliente no serviço: /controle/estado_atual
+
+    Cliente no serviço: /controle_tela_service
+        - Tipo da mensagem: lisa_interfaces/srv/ControleTela
+            - request: string gif_desejado 
+            - response: bool sucesso
+
+    Cliente no serviço: /controle/mudar_estado_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
             - request: string estado_desejado 
             - response: bool sucesso
@@ -51,6 +58,11 @@ class ModoDesenhoNode(Node):
         self.controle_estados_request_ = ControleEstados.Request()
         while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'Esperando serviço controle_estados_service')
+
+        self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
+        while not self.tela_client_.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'Esperando serviço controle_tela_service')
+        self.tela_request_ = ControleTela.Request()
 
         self.frame_height_ = 0
         self.frame_width_ = 0
@@ -151,6 +163,9 @@ class ModoDesenhoNode(Node):
 
 
     def ativar(self):
+        self.send_tela_request('desenho')
+        time.sleep(2.5)
+
         self.current_gesture = None
         self.current_landmarks = None
         self.last_gesture = None
@@ -205,6 +220,10 @@ class ModoDesenhoNode(Node):
         self.controle_estados_request_.estado_desejado = estado_desejado
         return self.controle_estados_client_.call_async(self.controle_estados_request_)
 
+    def send_tela_request(self, gif_desejado):
+        self.get_logger().info(f"Enviando requisição '{gif_desejado}' ao controle de tela.")
+        self.tela_request_.gif_desejado = gif_desejado
+        return self.tela_client_.call_async(self.tela_request_)
 
     def destroy_node(self):
         # Garante que a janela feche se o nó morrer

@@ -82,7 +82,6 @@ class ControleTelaNode(Node):
 
         if self.request_gif_process_ is not None:
             if self.request_gif_process_.poll() is None:
-                self.get_logger().info("Animação em execução. Transição para o estado '{estado}' ficará pendente.")
                 self.pending_state_ = estado
                 return
 
@@ -152,13 +151,8 @@ class ControleTelaNode(Node):
             case "MENU":
                 if self.is_sleeping_:
                     self.wake_up()
-                else:
-                    self.play_gif_once("blink")
-            case "MODO_GESTOS":
-                self.play_gif_once("gestos")
-
-            case "MODO_TROPELO":
-                self.play_gif_once("tropelo")
+                # else:
+                #     self.play_gif_once("blink")
 
             case "MODO_SONECA":
                 self.sleep()

@@ -17,16 +17,37 @@ import threading
 import queue
 import time
 
+'''
+Detector de comandos de voz com Vosk. 
+
+Só detecta comandos específicos, porém é muito mais leve que o speech-to-text com whisper.
+É o nó principal de controle do estado da LISA, enviando requisições de mudança de estado para o controle_estados de acordo com o comando detectado.
+Usa o microfone padrão do sistema para detectar comandos de voz.
+Esse código está uns 80% vibe codado atualmente, pois a lógica para pegar o microfone padrão do sistema é bem louca :(
+
+    Tópico publicado: /audio/comandos_de_voz
+        - Tipo da mensagem: std_msgs/msg/String 
+        
+    Tópico inscrito: /controle/estado_atual
+        - Tipo da mensagem: example_interfaces/msg/String 
+
+    Cliente no serviço: /controle/mudar_estado_service
+        - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
+            - request: string estado_desejado 
+            - response: bool sucesso
+
+    Cliente no serviço: /controle_tela_service
+        - Tipo da mensagem: lisa_interfaces/srv/ControleTela
+            - request: string gif_desejado 
+            - response: bool sucesso
+
+'''
 
 class DetectorComandosDeVoz(Node):
 
     def __init__(self):
         super().__init__("detector_comandos_de_voz")
-
-        # ============================================================
         # CONFIGURAÇÕES
-        # ============================================================
-
         self.timer_period = 0.03  # ~33 Hz
 
         self.sample_rate = 16000
@@ -34,20 +55,14 @@ class DetectorComandosDeVoz(Node):
         self.bytes_per_sample = 2  # s16le = 16 bits = 2 bytes
 
         self.frames_per_buffer = 1024
-
-        # ============================================================
+       
         # CONTROLE DE ESTADO
-        # ============================================================
-
         self.estado_atual_lisa = None
 
         self.acordado = False
         self.ativo = True
 
-        # ============================================================
         # CONTROLE DO ÁUDIO
-        # ============================================================
-
         self.parec_process_ = None
 
         self.audio_queue_ = queue.Queue(
@@ -71,10 +86,8 @@ class DetectorComandosDeVoz(Node):
         # Evento usado para parar a thread de áudio.
         self.stop_audio_event_ = threading.Event()
 
-        # ============================================================
-        # COMANDOS
-        # ============================================================
 
+        # COMANDOS
         self.commands_map_ = {
             "ei lisa": "WAKE",
             "oi lisa": "WAKE",
@@ -88,12 +101,11 @@ class DetectorComandosDeVoz(Node):
             "modo desenho": "MODO_DESENHO",
             "modo atropelo": "MODO_TROPELO",
             "modo soneca": "MODO_SONECA",
+            "modo aura": "MODO_AURA",
+            "lisa ensina": "MODO_LISA_ENSINA"
         }
 
-        # ============================================================
         # SERVIÇO DE CONTROLE DE ESTADOS
-        # ============================================================
-
         self.controle_estados_client_ = self.create_client(
             ControleEstados,
             "mudar_estado_service"
@@ -108,10 +120,7 @@ class DetectorComandosDeVoz(Node):
 
         self.controle_estados_request_ = ControleEstados.Request()
 
-        # ============================================================
         # SERVIÇO DE CONTROLE DA TELA
-        # ============================================================
-
         self.tela_client_ = self.create_client(
             ControleTela,
             "controle_tela_service"
@@ -126,10 +135,7 @@ class DetectorComandosDeVoz(Node):
 
         self.tela_request_ = ControleTela.Request()
 
-        # ============================================================
         # TÓPICO DO ESTADO ATUAL
-        # ============================================================
-
         self.estado_atual_subscription_ = self.create_subscription(
             String,
             "controle/estado_atual",
@@ -137,10 +143,7 @@ class DetectorComandosDeVoz(Node):
             10
         )
 
-        # ============================================================
         # MODELO VOSK
-        # ============================================================
-
         self.model_path_ = os.path.join(
             get_package_share_directory("lisa_pkg"),
             "models",
@@ -168,10 +171,7 @@ class DetectorComandosDeVoz(Node):
 
             return
 
-        # ============================================================
         # GRAMÁTICA
-        # ============================================================
-
         commands_to_be_detected = list(
             self.commands_map_.keys()
         )
@@ -191,10 +191,8 @@ class DetectorComandosDeVoz(Node):
             grammar
         )
 
-        # ============================================================
-        # MICROFONE PADRÃO DO SISTEMA
-        # ============================================================
 
+        # MICROFONE PADRÃO DO SISTEMA
         self.get_logger().info(
             "Inicializando captura pelo microfone padrão "
             "do sistema..."
@@ -218,10 +216,7 @@ class DetectorComandosDeVoz(Node):
             f"{self.default_source_}"
         )
 
-        # ============================================================
         # THREAD DE ÁUDIO
-        # ============================================================
-
         self.audio_thread_running_ = True
 
         self.audio_thread_ = threading.Thread(
@@ -231,10 +226,7 @@ class DetectorComandosDeVoz(Node):
 
         self.audio_thread_.start()
 
-        # ============================================================
         # TIMER DE PROCESSAMENTO
-        # ============================================================
-
         self.timer_ = self.create_timer(
             self.timer_period,
             self.detect_voice_commands
@@ -249,10 +241,7 @@ class DetectorComandosDeVoz(Node):
             "inicializado com sucesso."
         )
 
-    # ================================================================
     # MICROFONE PADRÃO
-    # ================================================================
-
     def get_default_source(self):
 
         try:
@@ -296,10 +285,7 @@ class DetectorComandosDeVoz(Node):
 
             return None
 
-    # ================================================================
     # INICIA PAREC
-    # ================================================================
-
     def start_parec(self):
 
         with self.audio_lock_:
@@ -362,7 +348,7 @@ class DetectorComandosDeVoz(Node):
                 self.parec_process_ = subprocess.Popen(
                     command,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
                     bufsize=0
                 )
 
@@ -439,7 +425,24 @@ class DetectorComandosDeVoz(Node):
     # ================================================================
     # LOOP DE CAPTURA DE ÁUDIO
     # ================================================================
+    def read_audio_block(self, stream, size):
+        chunks = []
+        remaining = size
 
+        while remaining > 0 and self.audio_thread_running_:
+            chunk = stream.read(remaining)
+
+            if not chunk:
+                return None
+
+            chunks.append(chunk)
+            remaining -= len(chunk)
+
+        if remaining > 0:
+            return None
+
+        return b"".join(chunks)
+    
     def audio_capture_loop(self):
 
         while self.audio_thread_running_:
@@ -473,7 +476,8 @@ class DetectorComandosDeVoz(Node):
                     * self.bytes_per_sample
                 )
 
-                data = process.stdout.read(
+                data = self.read_audio_block(
+                    process.stdout,
                     bytes_to_read
                 )
 
@@ -900,7 +904,6 @@ class DetectorComandosDeVoz(Node):
         self.clear_audio_queue()
 
         super().destroy_node()
-
 
 # ====================================================================
 # MAIN

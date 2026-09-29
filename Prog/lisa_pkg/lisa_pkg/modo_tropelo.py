@@ -6,15 +6,12 @@ from lisa_interfaces.srv import ControleTela
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
 
 '''
-Modo Gestos
+Modo Tropelo da LISA
 
-Recebe resultados dos nó de detecção de gestos e dispara requisições de gifs para o controle da tela, associando cada gesto a um gif.
-
-    Tópico inscrito: /visao/gestos
-        - Tipo da mensagem: example_interfaces/msg/String
+TOCA O GIF DO TROPELO!!!
+Easter egg da lisa
 
     Cliente no serviço: /controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
@@ -28,14 +25,12 @@ Recebe resultados dos nó de detecção de gestos e dispara requisições de gif
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados
             - request: string estado_desejado 
             - response: bool sucesso
-
 '''
 
-class ModoGestosNode(Node):
+class ModoTropeloNode(Node):
 
     def __init__(self):
-        super().__init__("modo_gestos")
-        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, qos_profile_sensor_data)
+        super().__init__("modo_tropelo")
 
         self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
@@ -50,34 +45,11 @@ class ModoGestosNode(Node):
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.ativo = False
 
-        # mapa (dicionário) que associa um gesto a um gif
-        self.hand_gesture_request_map_ = {
-            "heart" : "love",
-            "like" : "happy",
-            "one" : "please",
-            "two" : "dizzy",
-            "dislike" : "sad",
-            "ok" : "bombastic",
-            "rock" : "star",
-            "call" : "party",
-            "middle_finger" : "angry"
-        }
-        
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
-
-    def hand_gestures_subscription_callback(self, msg):
-        if not self.ativo:
-            return
-        else:
-            hand_gesture = msg.data
-            if hand_gesture == "four":
-                self.desativar()
-                return
-            elif hand_gesture in self.hand_gesture_request_map_.keys():
-                gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
-                self.num_atual_de_requisicoes += 1
-                self.send_tela_request(gif_desejado)
+    def main_modo(self):
+        self.send_tela_request("tropelo")
+        self.send_controle_estados_request('MENU') # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
 
 
     def send_tela_request(self, gif_desejado):
@@ -87,7 +59,7 @@ class ModoGestosNode(Node):
 
 
     def estado_atual_sub_callback(self,msg):
-        if msg.data == "MODO_GESTOS":
+        if msg.data == "MODO_TROPELO":
             if not self.ativo:
                 self.ativar()
         else:
@@ -98,14 +70,14 @@ class ModoGestosNode(Node):
     def desativar(self):
         self.ativo = False
         self.send_controle_estados_request("MENU")
-        self.get_logger().info("## MODO GESTOS DESATIVADO ##")
+        self.get_logger().info("## MODO TROPELO DESATIVADO ##")
 
 
     def ativar(self):
         self.ativo = True
         self.num_atual_de_requisicoes = 0
-        self.get_logger().info("## MODO GESTOS ATIVADO ##")
-        self.send_tela_request("gestos")
+        self.get_logger().info("## MODO TROPELO ATIVADO ##")
+        self.main_modo()
 
 
     def send_controle_estados_request(self, estado_desejado):
@@ -116,7 +88,7 @@ class ModoGestosNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ModoGestosNode()
+    node = ModoTropeloNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

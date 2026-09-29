@@ -22,7 +22,10 @@ Processa mudanças de estado via requisição e publica o estado atual quando ho
     Tópico publicado: /controle/estado_atual
         - Tipo da mensagem: example_interfaces/msg/String 
 
+
 '''
+
+#TODO: modo música, modo jogo da velha, jogo da forca, manual (aprender a usar a lisa)
 
 class Estados(Enum):
     MENU = 0
@@ -33,7 +36,7 @@ class Estados(Enum):
     MODO_TROPELO = 5
     MODO_AURA = 6
     MODO_SONECA = 7
-
+    MODO_LISA_ENSINA = 8
 
 class ControleEstadosNode(Node):
 
@@ -48,7 +51,8 @@ class ControleEstadosNode(Node):
             "MODO_DESENHO" : Estados.MODO_DESENHO,
             "MODO_TROPELO" : Estados.MODO_TROPELO,
             "MODO_AURA" : Estados.MODO_AURA,
-            "MODO_SONECA" : Estados.MODO_SONECA
+            "MODO_SONECA" : Estados.MODO_SONECA,
+            "MODO_LISA_ENSINA" : Estados.MODO_LISA_ENSINA
         }
         # publica estado quando houver mudança
         self.publisher_ =  self.create_publisher(String, "controle/estado_atual", 10)
