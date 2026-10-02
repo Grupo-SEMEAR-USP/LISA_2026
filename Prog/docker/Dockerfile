@@ -11,11 +11,7 @@ WORKDIR /lisa_ws
 # ============================================================
 # Dependências do sistema
 # ============================================================
-#
-# A captura de voz da LISA usa pactl + parec (PulseAudio API,
-# normalmente fornecida pelo pipewire-pulse no Ubuntu 24.04).
-# O mpv é usado pelo controle_tela para exibir os GIFs.
-#
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-dev \
@@ -60,8 +56,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-jazzy-std-msgs \
     && rm -rf /var/lib/apt/lists/*
 
+
 # ============================================================
-# Dependências Python comuns
+# Dependências Python
+#
+# Mantemos as mesmas versões usadas no projeto.
 # ============================================================
 
 COPY docker/requirements.txt /tmp/requirements.txt
@@ -71,78 +70,58 @@ RUN python3 -m pip install \
     --no-cache-dir \
     -r /tmp/requirements.txt
 
+
+# ============================================================
+# Dependências do MediaPipe
+#
+# O MediaPipe 0.10.32 declara essas dependências.
+# Elas são instaladas explicitamente para impedir que o pip
+# tente substituir o NumPy 1.26.4 pelo NumPy 2.x.
+# ============================================================
+
+RUN python3 -m pip install \
+    --break-system-packages \
+    --no-cache-dir \
+    'numpy==1.26.4' \
+    'absl-py~=2.3' \
+    'flatbuffers~=25.9' \
+    'sounddevice~=0.5' \
+    'matplotlib'
+
+
 # ============================================================
 # MediaPipe
+#
+# --no-deps é intencional:
+# as dependências já foram instaladas acima com as versões
+# compatíveis com o restante do projeto.
 # ============================================================
-#
-# O MediaPipe 0.10.32 não possui wheel Linux ARM64. Para a
-# Raspberry Pi 5 (aarch64), ele é compilado a partir do código
-# fonte. Em amd64, usamos a wheel oficial.
-#
-# O projeto usa somente CPU, portanto o build ARM desabilita GPU.
-# O --link-opencv reutiliza o OpenCV já instalado pelo requirements.
-#
-RUN set -eux; \
-    arch="$(dpkg --print-architecture)"; \
-    if [ "$arch" = "arm64" ]; then \
-        apt-get update; \
-        apt-get install -y --no-install-recommends \
-            git \
-            curl \
-            ca-certificates \
-            openjdk-17-jdk-headless \
-            protobuf-compiler; \
-        rm -rf /var/lib/apt/lists/*; \
-        curl -fsSL \
-            https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-arm64.deb \
-            -o /tmp/bazelisk.deb; \
-        echo "db8ada89c841afd2cb33db7d13aa98ea4fb14612579a8bae84722250caa84272  /tmp/bazelisk.deb" | sha256sum -c -; \
-        dpkg -i /tmp/bazelisk.deb; \
-        rm -f /tmp/bazelisk.deb; \
-        if ! command -v bazel >/dev/null 2>&1; then \
-            ln -sf "$(command -v bazelisk)" /usr/local/bin/bazel; \
-        fi; \
-        git clone --depth 1 --branch v0.10.32 \
-            https://github.com/google-ai-edge/mediapipe.git /tmp/mediapipe; \
-        echo 'build --jobs=4' >> /tmp/mediapipe/.bazelrc; \
-        python3 -m pip install \
-            --break-system-packages \
-            --no-cache-dir \
-            'absl-py~=2.3' \
-            'sounddevice~=0.5' \
-            'flatbuffers~=25.9' \
-            matplotlib; \
-        cd /tmp/mediapipe; \
-        MEDIAPIPE_DISABLE_GPU=1 \
-            python3 setup.py install --link-opencv; \
-        cd /lisa_ws; \
-        rm -rf /tmp/mediapipe /root/.cache/bazel /root/.cache/pip; \
-    else \
-        python3 -m pip install \
-            --break-system-packages \
-            --no-cache-dir \
-            'mediapipe==0.10.32'; \
-    fi
+
+RUN python3 -m pip install \
+    --break-system-packages \
+    --no-cache-dir \
+    --no-deps \
+    'mediapipe==0.10.32'
+
 
 # ============================================================
 # Código ROS 2
 # ============================================================
-# O contexto do build é Prog/. Portanto, o código fica em src/.
 
 COPY src /lisa_ws/src
 
-# ============================================================
-# Build do workspace
-# ============================================================
-
 RUN source /opt/ros/jazzy/setup.bash && \
     colcon build --symlink-install
+
+RUN mkdir -p /tmp/lisa-home/.ros /tmp/lisa-cache && \
+    chown -R 1000:1000 /tmp/lisa-home /tmp/lisa-cache
 
 # ============================================================
 # Entrypoint
 # ============================================================
 
 COPY docker/entrypoint.sh /entrypoint.sh
+
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

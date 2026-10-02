@@ -2,13 +2,16 @@
 
 set -euo pipefail
 
+# O setup do ROS 2 Jazzy pode acessar variáveis não definidas.
+# Por isso, desativamos temporariamente o "nounset" (-u).
+set +u
 source /opt/ros/jazzy/setup.bash
 source /lisa_ws/install/setup.bash
+set -u
 
-# HOME/ROS log para o usuário numérico usado pelo container.
-mkdir -p "${HOME:-/tmp/lisa-home}" "${XDG_CACHE_HOME:-/tmp/lisa-cache}" \
-         "${HOME:-/tmp/lisa-home}/.ros"
-export ROS_LOG_DIR="${ROS_LOG_DIR:-${HOME:-/tmp/lisa-home}/.ros/log}"
+# HOME/ROS log para o usuário usado pelo container.
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$HOME/.ros"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$HOME/.ros/log}"
 
 print_section() {
     echo
