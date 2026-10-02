@@ -1,0 +1,19 @@
+# Outros
+outros/
+
+# Git
+.git/
+
+# Arquivos gerados pelo ROS 2
+build/
+install/
+log/
+
+# Cache e arquivos temporários do Python
+**/__pycache__/
+*.py[cod]
+
+# Arquivos temporários de editores
+**/*.swp
+**/*.swo
+**/*~
