@@ -1,0 +1,66 @@
+services:
+
+  lisa:
+    build:
+      # docker-compose.yml está em Prog/docker/.
+      # O contexto correto é Prog/.
+      context: ..
+      dockerfile: docker/Dockerfile
+
+    container_name: lisa_2026
+
+    # Mantém o mesmo UID/GID do usuário que iniciou o container.
+    # Isso ajuda no acesso ao X11 e ao servidor PulseAudio/PipeWire.
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+
+    group_add:
+      - "${VIDEO_GID}"
+    
+    network_mode: host
+    ipc: host
+    init: true
+    shm_size: "512m"
+
+    environment:
+      # X11/XWayland: funciona tanto com HDMI quanto com a tela DSI
+      # quando ambas fazem parte da sessão gráfica do host.
+      DISPLAY: "${DISPLAY:-:0}"
+      XAUTHORITY: /tmp/.Xauthority
+      QT_X11_NO_MITSHM: "1"
+      QT_QPA_PLATFORM: xcb
+      GDK_BACKEND: x11
+
+      # Áudio do host via PulseAudio/PipeWire-pulse.
+      PULSE_SERVER: unix:/tmp/pulse/native
+
+      # O container roda com UID do host, mas usa um HOME próprio.
+      HOME: /tmp/lisa-home
+      XDG_CACHE_HOME: /tmp/lisa-cache
+      MPLCONFIGDIR: /tmp/matplotlib
+
+    volumes:
+      # Código fonte: alterações Python ficam disponíveis sem rebuild.
+      - ../src:/lisa_ws/src:rw
+
+      # setup.py instala modelos/GIFs em share/lisa_pkg.
+      # Estas montagens mantêm esses arquivos sincronizados com o host.
+      - ../src/lisa_pkg/models:/lisa_ws/install/lisa_pkg/share/lisa_pkg/models:ro
+      - ../src/lisa_pkg/telas:/lisa_ws/install/lisa_pkg/share/lisa_pkg/telas:ro
+
+      # X11/XWayland.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY_FILE}:/tmp/.Xauthority:ro
+
+      # Socket PulseAudio compatível do PipeWire no host.
+      - ${PULSE_SOCKET_DIR}:/tmp/pulse:rw
+
+      # Cookie/configuração do PulseAudio para autenticação do cliente.
+      - ${PULSE_CONFIG_DIR}:/tmp/lisa-home/.config/pulse:ro
+
+    # Simplifica o acesso à câmera, áudio e outros dispositivos do robô.
+    # Depois que o hardware estiver estabilizado, isso pode ser restringido.
+    privileged: true
+
+    stdin_open: true
+    tty: true
+    restart: "no"
