@@ -13,6 +13,9 @@ services:
     # Isso ajuda no acesso ao X11 e ao servidor PulseAudio/PipeWire.
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
 
+    group_add:
+      - "${VIDEO_GID}"
+    
     network_mode: host
     ipc: host
     init: true
@@ -33,6 +36,7 @@ services:
       # O container roda com UID do host, mas usa um HOME próprio.
       HOME: /tmp/lisa-home
       XDG_CACHE_HOME: /tmp/lisa-cache
+      MPLCONFIGDIR: /tmp/matplotlib
 
     volumes:
       # Código fonte: alterações Python ficam disponíveis sem rebuild.

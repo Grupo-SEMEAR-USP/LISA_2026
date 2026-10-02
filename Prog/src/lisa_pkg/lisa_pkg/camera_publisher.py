@@ -48,6 +48,8 @@ class CameraPublisherNode(Node):
             self.get_logger().error("Erro ao iniciar captura de vídeo.")
             return
 
+        self.get_logger().info(f"Captura iniciada com sucesso usando a câmera de indíce {camera_index}.")
+
         self.fps_ = self.get_parameter("fps").value
         self.frame_width_ = self.get_parameter("frame_w").value
         self.frame_height_ = self.get_parameter("frame_h").value

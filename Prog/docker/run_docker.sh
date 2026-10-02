@@ -106,6 +106,8 @@ fi
 # PulseAudio / PipeWire-pulse
 # ------------------------------------------------------------
 
+export VIDEO_GID="$(getent group video | cut -d: -f3)"
+
 export PULSE_SOCKET_DIR="/run/user/${USER_ID}/pulse"
 export PULSE_CONFIG_DIR="${HOME}/.config/pulse"
 
