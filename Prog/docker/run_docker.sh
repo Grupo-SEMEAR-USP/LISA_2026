@@ -1,12 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ============================================================
 # LISA 2026 - Executar Docker
 # ============================================================
 
-set -e
+set -euo pipefail
 
-cd "$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo "=============================================="
 echo "             LISA 2026 - Docker"
@@ -27,52 +28,99 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------
-# Verificar Git
-# ------------------------------------------------------------
-
-if ! command -v git >/dev/null 2>&1; then
-    echo "AVISO: Git não foi encontrado."
-    echo "O script ainda pode funcionar se o projeto já estiver baixado."
-fi
-
-# ------------------------------------------------------------
-# Configurar UID
+# UID/GID do host
 # ------------------------------------------------------------
 
 export USER_ID="$(id -u)"
-
-echo
-echo "USER_ID: $USER_ID"
-
-# ------------------------------------------------------------
-# Verificar DISPLAY
-# ------------------------------------------------------------
-
-if [ -z "${DISPLAY:-}" ]; then
-    echo
-    echo "AVISO: DISPLAY não está definido."
-    echo "A interface gráfica da LISA pode não funcionar."
-else
-    echo "DISPLAY: $DISPLAY"
-fi
+export GROUP_ID="$(id -g)"
+export USER_NAME="$(id -un)"
 
 # ------------------------------------------------------------
-# Liberar X11
+# Display
 # ------------------------------------------------------------
+# Em Raspberry Pi com sessão gráfica local, normalmente é :0.
+# Em Ubuntu usando Wayland, o X11 usado pelo mpv passa pelo XWayland.
 
-if command -v xhost >/dev/null 2>&1; then
-    echo
-    echo "Configurando acesso à interface gráfica..."
-    xhost +local:docker >/dev/null 2>&1 || \
-        echo "AVISO: não foi possível configurar o acesso X11."
-else
-    echo
-    echo "AVISO: xhost não encontrado."
+export DISPLAY="${DISPLAY:-:0}"
+
+if [ ! -d /tmp/.X11-unix ]; then
+    echo "AVISO: /tmp/.X11-unix não existe."
     echo "A interface gráfica pode não funcionar."
 fi
 
+echo
+echo "UID:      $USER_ID"
+echo "GID:      $GROUP_ID"
+echo "DISPLAY:  $DISPLAY"
+
 # ------------------------------------------------------------
-# Verificar câmera
+# XAUTHORITY
+# ------------------------------------------------------------
+
+TEMP_XAUTH=""
+
+if [ -n "${XAUTHORITY:-}" ] && [ -f "${XAUTHORITY}" ]; then
+    export XAUTHORITY_FILE="$XAUTHORITY"
+elif [ -f "${HOME}/.Xauthority" ]; then
+    export XAUTHORITY_FILE="${HOME}/.Xauthority"
+else
+    XWAYLAND_XAUTH=""
+
+    if [ -d "/run/user/${USER_ID}" ]; then
+        XWAYLAND_XAUTH="$(find "/run/user/${USER_ID}" \
+            -maxdepth 1 \
+            -type f \
+            -name '.mutter-Xwaylandauth.*' \
+            -print -quit 2>/dev/null || true)"
+    fi
+
+    if [ -n "$XWAYLAND_XAUTH" ] && [ -f "$XWAYLAND_XAUTH" ]; then
+        export XAUTHORITY_FILE="$XWAYLAND_XAUTH"
+    else
+        TEMP_XAUTH="/tmp/lisa-docker-xauth-${USER_ID}"
+        touch "$TEMP_XAUTH"
+        chmod 600 "$TEMP_XAUTH"
+        export XAUTHORITY_FILE="$TEMP_XAUTH"
+        echo "AVISO: nenhum arquivo XAUTHORITY foi encontrado."
+        echo "Tentando acesso ao X11/XWayland por xhost."
+    fi
+fi
+
+echo "XAUTHORITY: $XAUTHORITY_FILE"
+
+# xhost é um fallback para ambientes em que o cookie não é suficiente.
+XHOST_MODE=""
+if command -v xhost >/dev/null 2>&1; then
+    export XAUTHORITY="$XAUTHORITY_FILE"
+
+    if xhost +SI:localuser:"$USER_NAME" >/dev/null 2>&1; then
+        XHOST_MODE="localuser"
+    elif xhost +local:docker >/dev/null 2>&1; then
+        XHOST_MODE="docker"
+    else
+        echo "AVISO: não foi possível liberar o acesso X11 com xhost."
+    fi
+fi
+
+# ------------------------------------------------------------
+# PulseAudio / PipeWire-pulse
+# ------------------------------------------------------------
+
+export PULSE_SOCKET_DIR="/run/user/${USER_ID}/pulse"
+export PULSE_CONFIG_DIR="${HOME}/.config/pulse"
+
+# O diretório é usado também para disponibilizar o cookie ao container.
+mkdir -p "$PULSE_CONFIG_DIR"
+
+if [ -S "${PULSE_SOCKET_DIR}/native" ]; then
+    echo "PulseAudio/PipeWire-pulse: socket encontrado em ${PULSE_SOCKET_DIR}/native"
+else
+    echo "AVISO: socket ${PULSE_SOCKET_DIR}/native não encontrado."
+    echo "O detector_comandos_de_voz poderá iniciar sem microfone funcional."
+fi
+
+# ------------------------------------------------------------
+# Câmera
 # ------------------------------------------------------------
 
 echo
@@ -87,23 +135,6 @@ else
 fi
 
 # ------------------------------------------------------------
-# Verificar áudio
-# ------------------------------------------------------------
-
-echo
-echo "=============================================="
-echo "             Verificando áudio"
-echo "=============================================="
-
-if command -v pactl >/dev/null 2>&1; then
-    if pactl info >/dev/null 2>&1; then
-        echo "Servidor de áudio acessível."
-    else
-        echo "AVISO: servidor PulseAudio/PipeWire não respondeu."
-    fi
-fi
-
-# ------------------------------------------------------------
 # Escolher modo
 # ------------------------------------------------------------
 
@@ -113,11 +144,34 @@ if [ "${1:-}" = "--build" ]; then
     BUILD=true
 elif [ "${1:-}" != "" ]; then
     echo
-    echo "Uso:"
+echo "Uso:"
     echo "  ./run_docker.sh"
     echo "  ./run_docker.sh --build"
     exit 1
 fi
+
+# ------------------------------------------------------------
+# Limpeza do acesso X11 temporário
+# ------------------------------------------------------------
+
+cleanup() {
+    if command -v xhost >/dev/null 2>&1; then
+        case "$XHOST_MODE" in
+            localuser)
+                xhost -SI:localuser:"$USER_NAME" >/dev/null 2>&1 || true
+                ;;
+            docker)
+                xhost -local:docker >/dev/null 2>&1 || true
+                ;;
+        esac
+    fi
+
+    if [ -n "$TEMP_XAUTH" ]; then
+        rm -f "$TEMP_XAUTH"
+    fi
+}
+
+trap cleanup EXIT INT TERM
 
 # ------------------------------------------------------------
 # Executar Docker Compose
