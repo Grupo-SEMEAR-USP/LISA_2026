@@ -74,9 +74,9 @@ RUN python3 -m pip install \
 # ============================================================
 # Dependências do MediaPipe
 #
-# O MediaPipe 0.10.32 declara essas dependências.
-# Elas são instaladas explicitamente para impedir que o pip
-# tente substituir o NumPy 1.26.4 pelo NumPy 2.x.
+# O MediaPipe 0.10.15 declara essas dependências.
+# Elas são instaladas explicitamente para manter o ambiente
+# compatível com o restante do projeto.
 # ============================================================
 
 RUN python3 -m pip install \
@@ -85,6 +85,8 @@ RUN python3 -m pip install \
     'numpy==1.26.4' \
     'absl-py~=2.3' \
     'flatbuffers~=25.9' \
+    'protobuf>=4.25.3,<5' \
+    'attrs' \
     'sounddevice~=0.5' \
     'matplotlib'
 
@@ -101,7 +103,7 @@ RUN python3 -m pip install \
     --break-system-packages \
     --no-cache-dir \
     --no-deps \
-    'mediapipe==0.10.32'
+    'mediapipe==0.10.15'
 
 
 # ============================================================
