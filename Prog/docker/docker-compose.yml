@@ -7,7 +7,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
 
-    container_name: lisa_2026
+    container_name: lisa_v3
 
     # Mantém o mesmo UID/GID do usuário que iniciou o container.
     # Isso ajuda no acesso ao X11 e ao servidor PulseAudio/PipeWire.

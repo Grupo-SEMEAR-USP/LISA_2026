@@ -1,11 +1,11 @@
-# LISA 2026 — Docker
+# LISA v3 — Docker
 
 ## 1. Pré-requisitos
 
 Tenha instalado:
 
 - Git
-- Docker com `docker compose`
+- Docker
 
 ## 2. Clonar o projeto
 

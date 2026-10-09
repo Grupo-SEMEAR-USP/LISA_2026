@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 
 # ============================================================
-# LISA 2026 - Executar Docker
+# LISA v3 - Executar Docker
 # ============================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
-
-echo "=============================================="
-echo "             LISA 2026 - Docker"
-echo "=============================================="
 
 # ------------------------------------------------------------
 # Verificar Docker
@@ -48,10 +44,10 @@ if [ ! -d /tmp/.X11-unix ]; then
     echo "A interface gráfica pode não funcionar."
 fi
 
-echo
-echo "UID:      $USER_ID"
-echo "GID:      $GROUP_ID"
-echo "DISPLAY:  $DISPLAY"
+# echo
+# echo "UID:      $USER_ID"
+# echo "GID:      $GROUP_ID"
+# echo "DISPLAY:  $DISPLAY"
 
 # ------------------------------------------------------------
 # XAUTHORITY
@@ -86,7 +82,7 @@ else
     fi
 fi
 
-echo "XAUTHORITY: $XAUTHORITY_FILE"
+# echo "XAUTHORITY: $XAUTHORITY_FILE"
 
 # xhost é um fallback para ambientes em que o cookie não é suficiente.
 XHOST_MODE=""
@@ -115,7 +111,8 @@ export PULSE_CONFIG_DIR="${HOME}/.config/pulse"
 mkdir -p "$PULSE_CONFIG_DIR"
 
 if [ -S "${PULSE_SOCKET_DIR}/native" ]; then
-    echo "PulseAudio/PipeWire-pulse: socket encontrado em ${PULSE_SOCKET_DIR}/native"
+    # echo "PulseAudio/PipeWire-pulse: socket encontrado em ${PULSE_SOCKET_DIR}/native"
+    : 
 else
     echo "AVISO: socket ${PULSE_SOCKET_DIR}/native não encontrado."
     echo "O detector_comandos_de_voz poderá iniciar sem microfone funcional."
@@ -125,13 +122,14 @@ fi
 # Câmera
 # ------------------------------------------------------------
 
-echo
-echo "=============================================="
-echo "             Verificando câmera"
-echo "=============================================="
+# echo
+# echo "=============================================="
+# echo "             Verificando câmera"
+# echo "=============================================="
 
 if compgen -G "/dev/video*" > /dev/null; then
-    ls -l /dev/video*
+    #ls -l /dev/video*
+    :
 else
     echo "AVISO: nenhuma câmera /dev/video* encontrada."
 fi
@@ -181,7 +179,7 @@ trap cleanup EXIT INT TERM
 
 echo
 echo "=============================================="
-echo "             Iniciando LISA"
+echo "             LISA v3 - Docker"
 echo "=============================================="
 echo
 
