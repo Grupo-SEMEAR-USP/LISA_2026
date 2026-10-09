@@ -1,0 +1,1 @@
+docker exec -it lisa_v3 bash

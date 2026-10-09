@@ -116,6 +116,29 @@ RUN source /opt/ros/jazzy/setup.bash && \
     colcon build --symlink-install
 
 RUN mkdir -p /tmp/lisa-home/.ros /tmp/lisa-cache && \
+    printf '%s\n' \
+        '# Configuração do ROS 2 Jazzy' \
+        'if [ -f /opt/ros/jazzy/setup.bash ]; then' \
+        '    source /opt/ros/jazzy/setup.bash' \
+        'fi' \
+        'if [ -f /lisa_ws/install/setup.bash ]; then' \
+        '    source /lisa_ws/install/setup.bash' \
+        'fi' \
+        'if [ -f /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash ]; then' \
+        '    source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash' \
+        'fi' \
+        '' \
+        '# Histórico de comandos' \
+        'export HISTSIZE=10000' \
+        'export HISTFILESIZE=20000' \
+        'export HISTFILE=/tmp/lisa-home/.bash_history' \
+        'export HISTCONTROL=ignoredups:erasedups' \
+        'shopt -s histappend' \
+        'shopt -s checkwinsize' \
+        '' \
+        '# Prompt identificando o ambiente da LISA' \
+        "PS1='\\[\\e[1;32m\\]lisa@docker\\[\\e[0m\\]:\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ '" \
+        > /tmp/lisa-home/.bashrc && \
     chown -R 1000:1000 /tmp/lisa-home /tmp/lisa-cache
 
 # ============================================================
