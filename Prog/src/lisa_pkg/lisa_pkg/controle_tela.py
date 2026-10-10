@@ -118,7 +118,7 @@ class ControleTelaNode(Node):
             self.get_logger().error(f"Gif {background_gif_name} não encontrado.")
             return False
 
-        command = ['mpv', '--fullscreen=yes', '--loop=inf', '--correct-pts=no', '--idle=yes', background_gif_path]
+        command = ['mpv', '--cursor-autohide=always', '--fullscreen=yes', '--loop=inf', '--correct-pts=no', '--idle=yes', background_gif_path]
 
         self.background_gif_process_ = subprocess.Popen(command, env=self.env_, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.get_logger().info(f'Gif background {background_gif_name} iniciado.')
@@ -140,7 +140,7 @@ class ControleTelaNode(Node):
                 self.get_logger().info(f"Requisição '{gif_name}' negada: um gif já está sendo executado.")
                 return False
 
-        command = ['mpv', '--fullscreen=yes', '--loop-file=no', '--correct-pts=no', '--ontop=yes', gif_path]
+        command = ['mpv', '--cursor-autohide=always', '--fullscreen=yes', '--loop-file=no', '--correct-pts=no', '--ontop=yes', gif_path]
         self.request_gif_process_ = subprocess.Popen(command, env=self.env_, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.get_logger().info(f'Gif {gif_name} iniciado.')
 
@@ -160,7 +160,7 @@ class ControleTelaNode(Node):
             self.get_logger().error(f"Gif {gif_path} não encontrado.")
             return
 
-        command = ['mpv', '--fullscreen=yes', '--loop=inf', '--correct-pts=no', '--idle=yes', '--ontop=yes', gif_path]
+        command = ['mpv', '--cursor-autohide=always', '--fullscreen=yes', '--loop=inf', '--correct-pts=no', '--idle=yes', '--ontop=yes', gif_path]
         self.sleeping_gif_process_ = subprocess.Popen(command, env=self.env_, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.get_logger().info(f'Gif {gif_name} iniciado com sucesso.')
 
