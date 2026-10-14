@@ -4,6 +4,13 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
+    micro_ros_agent = Node(
+        package='micro_ros_agent',
+        executable='micro_ros_agent',
+        name='micro_ros_agent',
+        arguments=["serial", "--dev", "/dev/ttyACM0"]
+    )
+
     controle_estados = Node(
         package="lisa_pkg",
         executable="controle_estados"
@@ -80,6 +87,7 @@ def generate_launch_description():
         executable="modo_soneca"
     )
 
+    ld.add_action(micro_ros_agent)
     ld.add_action(controle_estados)
     ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
