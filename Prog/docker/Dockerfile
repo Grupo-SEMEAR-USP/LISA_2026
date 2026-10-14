@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-jazzy-geometry-msgs \
     ros-jazzy-sensor-msgs \
     ros-jazzy-std-msgs \
+    ros-jazzy-micro-ros-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 

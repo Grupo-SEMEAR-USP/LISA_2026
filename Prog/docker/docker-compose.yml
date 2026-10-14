@@ -14,7 +14,10 @@ services:
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
 
     group_add:
+      # Permite acesso às câmeras.
       - "${VIDEO_GID}"
+      # Permite acesso às portas seriais, como /dev/ttyACM0.
+      - "${DIALOUT_GID}"
     
     network_mode: host
     ipc: host

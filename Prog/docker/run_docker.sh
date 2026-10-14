@@ -163,6 +163,9 @@ export USER_ID="$(id -u)"
 export GROUP_ID="$(id -g)"
 export USER_NAME="$(id -un)"
 
+# GID do grupo responsável pelo acesso às portas seriais USB.
+export DIALOUT_GID="$(getent group dialout | cut -d: -f3)"
+
 # ------------------------------------------------------------
 # Configuração do display gráfico
 # ------------------------------------------------------------
