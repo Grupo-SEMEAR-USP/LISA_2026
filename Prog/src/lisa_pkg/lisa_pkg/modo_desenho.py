@@ -4,7 +4,7 @@ from .modo_base import ModoBaseNode
 
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
@@ -25,7 +25,7 @@ Junta as informações para permitir desenho na tela utilizando OpenCV.
         - Tipo da mensagem: geometry_msgs/msg/Polygon
 
     Tópico inscrito: /visao/gestos
-        - Tipo da mensagem: example_interfaces/msg/String
+        - Tipo da mensagem: std_msgs/msg/String
 
 '''
 

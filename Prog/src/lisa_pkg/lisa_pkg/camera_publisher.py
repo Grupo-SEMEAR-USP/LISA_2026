@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
 from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
 

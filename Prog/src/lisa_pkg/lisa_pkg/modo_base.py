@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados
 from lisa_interfaces.srv import ControleTela
 from rclpy.node import Node
@@ -14,7 +14,7 @@ MODO BASE, DO QUAL TODOS OS MODOS HERDAM FUNÇÕES BÁSICAS, CLIENTS DE TELA E E
             - response: bool sucesso
 
     Tópico inscrito: /controle/estado_atual
-        - Tipo da mensagem: example_interfaces/msg/String 
+        - Tipo da mensagem: std_msgs/msg/String 
         
     Cliente no serviço: /controle/mudar_estado_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados

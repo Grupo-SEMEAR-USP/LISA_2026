@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from lisa_interfaces.srv import ControleTela
 
 import rclpy
@@ -25,7 +25,7 @@ Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até ou
             - response: bool sucesso
 
     Tópico inscrito: /controle/estado_atual
-        - Tipo da mensagem: example_interfaces/msg/String
+        - Tipo da mensagem: std_msgs/msg/String
 
 '''
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados, ControleTela
 
 import rclpy
@@ -26,7 +26,7 @@ Usa o microfone padrão do sistema para detectar comandos de voz.
 Esse código está uns 80% vibe codado atualmente, pois a lógica para pegar o microfone padrão do sistema é bem louca :(
 
     Tópico inscrito: /controle/estado_atual
-        - Tipo da mensagem: example_interfaces/msg/String 
+        - Tipo da mensagem: std_msgs/msg/String 
 
     Cliente no serviço: /controle/mudar_estado_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleEstados

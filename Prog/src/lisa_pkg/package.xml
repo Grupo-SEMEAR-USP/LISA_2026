@@ -8,7 +8,6 @@
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
-  <depend>example_interfaces</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>lisa_interfaces</depend>

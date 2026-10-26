@@ -2,7 +2,7 @@
 
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
@@ -26,7 +26,7 @@ Processa o frame da câmera com mediapipe e publica os landmarks relativos à po
         - mostrar_landmarks: mostra frame com landmarks detectados na tela (padrão=False)
 
     Tópico inscrito: /controle/estado_atual
-        - Tipo da mensagem: example_interfaces/msg/String 
+        - Tipo da mensagem: std_msgs/msg/String 
 
     Tópico inscrito: /visao/frame
         - Tipo da mensagem: sensor_msgs/msg/Image 

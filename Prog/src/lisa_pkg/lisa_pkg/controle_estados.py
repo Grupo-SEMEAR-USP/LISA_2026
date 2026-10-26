@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados
 
 import rclpy
 from rclpy.node import Node
-
-from enum import Enum
 
 '''
 Controle de Estados da LISA
@@ -20,7 +18,7 @@ Processa mudanças de estado via requisição e publica o estado atual quando ho
             - response: bool sucesso
 
     Tópico publicado: /controle/estado_atual
-        - Tipo da mensagem: example_interfaces/msg/String 
+        - Tipo da mensagem: std_msgs/msg/String 
 
 
 '''

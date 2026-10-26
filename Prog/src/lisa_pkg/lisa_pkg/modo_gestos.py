@@ -2,7 +2,7 @@
 
 from .modo_base import ModoBaseNode
 
-from example_interfaces.msg import String
+from std_msgs.msg import String
 
 import rclpy
 from rclpy.qos import qos_profile_sensor_data
@@ -14,7 +14,7 @@ Modo Gestos
 Recebe resultados dos nó de detecção de gestos e dispara requisições de gifs para o controle da tela, associando cada gesto a um gif.
 
     Tópico inscrito: /visao/gestos
-        - Tipo da mensagem: example_interfaces/msg/String
+        - Tipo da mensagem: std_msgs/msg/String
 
 '''
 

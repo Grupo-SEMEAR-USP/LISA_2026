@@ -8,7 +8,7 @@
 #include <rclc/executor.h>
 #include <rmw_microros/rmw_microros.h>
 
-#include <example_interfaces/msg/string.h>
+#include <std_msgs/msg/string.h>
 
 #define LED_STATUS 2
 #define LED_PIN 4
@@ -28,8 +28,8 @@ rcl_allocator_t allocator;
 rcl_subscription_t subscriber;
 rcl_publisher_t log_publisher;
 
-example_interfaces__msg__String msg;      // mensagem recebida (visao/gestos)
-example_interfaces__msg__String log_msg;  // mensagem enviada (esp32/log)
+std_msgs__msg__String msg;      // mensagem recebida (visao/gestos)
+std_msgs__msg__String log_msg;  // mensagem enviada (esp32/log)
 
 // Buffers estaticos: o micro-ROS escreve/le direto neles.
 static char rx_buffer[BUFFER_LENGTH];
@@ -58,8 +58,8 @@ void log_info(const char * info)
 
 void subscription_callback(const void * msgin)
 {
-  const example_interfaces__msg__String * received =
-    (const example_interfaces__msg__String *)msgin;
+  const std_msgs__msg__String * received =
+    (const std_msgs__msg__String *)msgin;
 
   const char * gesture = received->data.data;
 
@@ -87,14 +87,14 @@ bool create_entities()
   RCCHECK(rclc_subscription_init_best_effort(
     &subscriber,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(example_interfaces, msg, String),
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
     "visao/gestos"));
 
   // create publisher (esp32/log)
   RCCHECK(rclc_publisher_init_default(
     &log_publisher,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(example_interfaces, msg, String),
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
     "esp32/log"));
 
   // create executor
