@@ -132,7 +132,7 @@ class ModoDesenhoNode(ModoBaseNode):
             self.current_color = 0
 
 
-    def ativar(self):
+    def on_ativar(self):
         self.send_tela_request('desenho')
         self.wait(2.5)
 
@@ -161,8 +161,6 @@ class ModoDesenhoNode(ModoBaseNode):
 
         # Aplica o Fullscreen na janela recém-criada
         cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-        super().ativar()
 
 
     def desativar(self):
