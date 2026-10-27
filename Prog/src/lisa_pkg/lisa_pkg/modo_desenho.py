@@ -9,7 +9,6 @@ from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
 from rclpy.qos import qos_profile_sensor_data
-import time
 import cv2
 
 '''
@@ -135,8 +134,10 @@ class ModoDesenhoNode(ModoBaseNode):
 
     def ativar(self):
         self.send_tela_request('desenho')
-        time.sleep(2.5)
+        self.wait(2.5)
 
+
+    def after_wait(self):
         self.current_gesture = None
         self.current_landmarks = None
         self.last_gesture = None

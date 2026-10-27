@@ -6,7 +6,6 @@ from std_msgs.msg import String
 
 import rclpy
 from rclpy.qos import qos_profile_sensor_data
-import time
 
 '''
 Modo Gestos
@@ -51,9 +50,9 @@ class ModoGestosNode(ModoBaseNode):
                 self.send_tela_request(gif_desejado)
 
 
-    def main_modo(self):
+    def on_ativar(self):
         self.send_tela_request("gestos")
-        time.sleep(3) # espera fim do gif antes de iniciar modo   
+        self.wait(3) # espera fim do gif antes de iniciar modo   
 
 
 def main(args=None):

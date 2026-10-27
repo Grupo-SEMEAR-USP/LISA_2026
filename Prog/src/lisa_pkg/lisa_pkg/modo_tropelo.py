@@ -18,12 +18,10 @@ class ModoTropeloNode(ModoBaseNode):
     def __init__(self):
         super().__init__("modo_tropelo")
 
-    def main_modo(self):
-        # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
+    def on_ativar(self):
+        # Apenas executa o gif e já volta pro menu
         self.send_tela_request("tropelo")
-        time.sleep(2)
-        self.desativar() 
-        self.send_controle_estados_request("MENU")
+        self.wait(2, self.return_to_menu)
 
 
 def main(args=None):

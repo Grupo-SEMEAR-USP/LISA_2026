@@ -74,6 +74,8 @@ class DetectorComandosDeVoz(Node):
         self.estado_atual_lisa = None
         self.acordado = False
         self.ativo = True
+        self.last_command = time.time()
+        self.inactivity_timeout = 5 * 60  # após 5 minutos volta a esperar a wake word
 
         # CONTROLE DO ÁUDIO
         self.parec_process_ = None
@@ -154,8 +156,14 @@ class DetectorComandosDeVoz(Node):
 
     # DETECÇÃO DE COMANDOS
     def detect_voice_commands(self):
+        # Verifica se a LISA está acordada há muito tempo sem receber comandos.
+        if self.acordado and (time.time() - self.last_command >= self.inactivity_timeout):
+            self.get_logger().info("Tempo de inatividade excedido. LISA voltando a dormir.")
+            self.acordado = False
+
         # Verifica se o microfone padrão mudou.
         self.check_default_source()
+
         # Se não estiver em estado que aceita comandos,não processa áudio.
         if not self.ativo:
             return
@@ -193,13 +201,14 @@ class DetectorComandosDeVoz(Node):
                             self.controle_estados_request_.estado_desejado = ("MENU")
                             self.controle_estados_client_.call_async(self.controle_estados_request_)
                             self.send_tela_request("wake_up")
-                            self.acordado = False
+                            self.last_command = time.time()
 
                         # Se estiver no MENU, acorda para receber o próximo comando.
                         elif not self.acordado:
                             self.get_logger().info("LISA acordada. Esperando comando.")
                             self.send_tela_request("happy")
                             self.acordado = True
+                            self.last_command = time.time()
                         break
 
                     # COMANDO DE MODO
@@ -207,8 +216,7 @@ class DetectorComandosDeVoz(Node):
                         self.get_logger().info(f"Comando recebido: {command}!")
                         self.controle_estados_request_.estado_desejado = (command)
                         self.controle_estados_client_.call_async(self.controle_estados_request_)
-                        # Volta a esperar pela palavra de ativação
-                        self.acordado = False
+                        self.last_command = time.time()
                         break
 
             except Exception as e:

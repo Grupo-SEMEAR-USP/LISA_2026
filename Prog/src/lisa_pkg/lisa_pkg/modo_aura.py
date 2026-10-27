@@ -3,7 +3,6 @@
 from .modo_base import ModoBaseNode
 
 import rclpy
-import time
 
 '''
 Modo Aura
@@ -20,12 +19,10 @@ class ModoAuraNode(ModoBaseNode):
         super().__init__("modo_aura")
 
 
-    def main_modo(self):
+    def on_ativar(self):
         self.send_tela_request("67")
-        time.sleep(6) # espera o fim do gif
-        # APENAS EXECUTA O GIF E JÁ VOLTA PARA O MENU
-        self.desativar()
-        self.send_controle_estados_request("MENU")
+        # espera o fim do gif e volta para o menu
+        self.wait(6, self.return_to_menu) 
 
 
 def main(args=None):

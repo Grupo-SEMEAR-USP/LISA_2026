@@ -18,7 +18,7 @@ class ModoSonecaNode(ModoBaseNode):
     def __init__(self):
         super().__init__("modo_soneca")
 
-    def main_modo(self):
+    def on_ativar(self):
         # por enquanto, só manda a tela dormir e o detector de voz é responsável por acordá-la
         self.send_tela_request("sleep") 
         # futuramente aqui ele enviará uma requisição para executar animação de dormir com os motores

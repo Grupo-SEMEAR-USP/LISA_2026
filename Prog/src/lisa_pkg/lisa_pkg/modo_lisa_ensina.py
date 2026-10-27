@@ -3,7 +3,6 @@
 from .modo_base import ModoBaseNode
 
 import rclpy
-import time
 import random
 
 '''
@@ -24,23 +23,25 @@ class ModoLisaEnsinaNode(ModoBaseNode):
             "educativo2" : 31,
             "educativo3" : 31
         }
+        self.nro_gif = 0
+        self.nome_gif_educativo = ""
+        self.tempo_gif = 0
 
 
-    def main_modo(self):
+    def on_ativar(self):
         # decide qual gif será tocado
-        nro_gif = random.randint(1,3)
-        nome_gif_educativo = "educativo" + str(nro_gif) # escolhe aleatoriamente 1 entre os 3 gifs educativos disponíveis
-        tempo_gif = self.duracao_gifs[nome_gif_educativo]
-        
+        self.nro_gif = random.randint(1,3)
+        self.nome_gif_educativo = "educativo" + str(self.nro_gif) # escolhe aleatoriamente 1 entre os 3 gifs educativos disponíveis
+        self.tempo_gif = self.duracao_gifs[self.nome_gif_educativo]
         # Gif transição para o modo educativo
         self.send_tela_request("modoeducativo")
-        time.sleep(3.1) #espera o fim do gif
+        self.wait(3.1, self.play_gif_educativo) #espera o fim do gif
+
+
+    def play_gif_educativo(self):        
         # Gif educativo
-        self.send_tela_request(nome_gif_educativo)
-        time.sleep(tempo_gif) #espera fim do gif educativo
-        # volta para o menu
-        self.desativar()
-        self.send_controle_estados_request("MENU")
+        self.send_tela_request(self.nome_gif_educativo)
+        self.wait(self.tempo_gif, self.return_to_menu) #espera fim do gif educativo e volta para o menu
 
 
 def main(args=None):
