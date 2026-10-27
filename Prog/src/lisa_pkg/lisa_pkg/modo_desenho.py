@@ -57,6 +57,9 @@ class ModoDesenhoNode(ModoBaseNode):
         self.color_list = [(0,0,255),(0,255,0),(255,0,0)]
         self.current_color = 0
 
+        self.pronto_para_desenhar = False
+        self.janela_criada = False
+
         # Variáveis para forçar nomes únicos de janela
         self.window_counter = 0
         self.window_name = "Desenho"
@@ -66,7 +69,7 @@ class ModoDesenhoNode(ModoBaseNode):
 
 
     def desenhar_na_tela(self):
-        if self.current_frame is None or not self.ativo:
+        if self.current_frame is None or not self.ativo or not self.pronto_para_desenhar:
             return
 
         frame = self.current_frame
@@ -133,6 +136,13 @@ class ModoDesenhoNode(ModoBaseNode):
 
 
     def on_ativar(self):
+        self.pronto_para_desenhar = False
+
+        # Limpa possíveis dados recebidos antes da ativação.
+        self.current_gesture = None
+        self.current_landmarks = None
+        self.last_gesture = None
+
         self.send_tela_request('desenho')
         self.wait(2.5)
 
@@ -141,38 +151,51 @@ class ModoDesenhoNode(ModoBaseNode):
         self.current_gesture = None
         self.current_landmarks = None
         self.last_gesture = None
+        self.points_to_be_drawn.clear()
         self.current_color = 0
-        
+
         cv2.destroyAllWindows()
         cv2.waitKey(50)
-        
-        # Muda o nome da janela a cada ativação
+
+        # Cria uma janela com nome único a cada ativação.
         self.window_counter += 1
         self.window_name = f"Desenho_{self.window_counter}"
-        
-        # Cria a janela com o novo nome
+
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        
+        self.janela_criada = True
+
         if self.current_frame is not None:
-            frame_inicial = cv2.resize(self.current_frame, (1920, 1080))
+            frame_inicial = cv2.resize(
+                self.current_frame,
+                (1920, 1080)
+            )
             cv2.imshow(self.window_name, frame_inicial)
-            
+
         cv2.waitKey(50)
 
-        # Aplica o Fullscreen na janela recém-criada
-        cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.setWindowProperty(
+            self.window_name,
+            cv2.WND_PROP_FULLSCREEN,
+            cv2.WINDOW_FULLSCREEN
+        )
+
+        # Libera o processamento somente após preparar a janela.
+        self.pronto_para_desenhar = True
 
 
     def desativar(self):
-        try:
-            cv2.destroyWindow(self.window_name)
-            
-            # O seu pulo do gato continua aqui:
-            for _ in range(5):
-                cv2.waitKey(1) 
-                
-        except Exception as e:
-            self.get_logger().error(f"Erro ao fechar janela: {e}")
+        self.pronto_para_desenhar = False
+
+        if self.janela_criada:
+            try:
+                cv2.destroyWindow(self.window_name)
+                cv2.waitKey(1)
+            except Exception as e:
+                self.get_logger().error(
+                    f"Erro ao fechar janela: {e}"
+                )
+            finally:
+                self.janela_criada = False
 
         self.points_to_be_drawn.clear()
         self.last_gesture = None
