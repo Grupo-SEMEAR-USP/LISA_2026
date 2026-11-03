@@ -62,7 +62,7 @@ class CameraPublisherNode(Node):
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.ativo = False
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")

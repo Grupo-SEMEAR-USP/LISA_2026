@@ -19,7 +19,7 @@ Pode ser requisitado para rodar outro gif (uma vez por requisição).
 Só pode atender uma requisição a cada 5 segundos, pois isso evita de tocar um gif enquanto outro já está sendo executado.
 Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até outra requisição ser feita (modo soneca).
 
-    Servidor no serviço: /controle_tela_service
+    Servidor no serviço: /controle/controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
             - request: string gif_desejado 
             - response: bool sucesso
@@ -47,7 +47,7 @@ class ControleTelaNode(Node):
         self.pending_state_ = None
         self.sleep_timer_ = None
 
-        self.srv_ = self.create_service(ControleTela, 'controle_tela_service', self.controle_tela_callback)   
+        self.srv_ = self.create_service(ControleTela, '/controle/controle_tela_service', self.controle_tela_callback)   
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         if not self.start_background_gif_loop():

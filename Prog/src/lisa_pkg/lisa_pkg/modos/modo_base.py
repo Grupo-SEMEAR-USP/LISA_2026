@@ -9,7 +9,7 @@ from typing import Callable
 '''
 MODO BASE, DO QUAL TODOS OS MODOS HERDAM FUNÇÕES BÁSICAS, CLIENTS DE TELA E ESTADO E SUBSCRIPTION DO ESTADO ATUAL
 
-    Cliente no serviço: /controle_tela_service
+    Cliente no serviço: /controle/controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
             - request: string gif_desejado 
             - response: bool sucesso
@@ -32,17 +32,17 @@ class ModoBaseNode(Node):
         super().__init__(self.nome_modo)
 
         # cliente no serviço da tela
-        self.tela_client_ = self.create_client(ControleTela, 'controle_tela_service')
+        self.tela_client_ = self.create_client(ControleTela, '/controle/controle_tela_service')
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f'Esperando serviço controle_tela_service')
+            self.get_logger().info(f'Esperando serviço /controle/controle_tela_service')
 
         # cliente no serviço de controle de estados
-        self.controle_estados_client_ = self.create_client(ControleEstados, 'mudar_estado_service')
+        self.controle_estados_client_ = self.create_client(ControleEstados, '/controle/mudar_estado_service')
         while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'Esperando serviço controle_estados_service')
 
         # inscrição no tópico do estado_atual
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
         self.ativo = False
 
         # controle de esperas (wait())

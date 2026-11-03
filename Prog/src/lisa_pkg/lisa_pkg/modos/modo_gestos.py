@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .modo_base import ModoBaseNode
+from lisa_pkg.modos.modo_base import ModoBaseNode
 
 from std_msgs.msg import String
 

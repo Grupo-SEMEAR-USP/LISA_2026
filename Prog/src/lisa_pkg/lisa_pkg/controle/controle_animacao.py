@@ -19,7 +19,7 @@ as requisições para a ESP32 através de um tópico.
 Aguarda a resposta da ESP32 para informar se a animação foi aceita
 ou recusada. Também recebe e exibe os logs publicados pela ESP32.
 
-    Servidor no serviço: /controle_animacao_service
+    Servidor no serviço: /controle/controle_animacao_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleAnimacao
             - request: string animacao_desejada
             - response: bool sucesso
@@ -44,7 +44,7 @@ class ControleAnimacaoNode(Node):
         super().__init__("controle_animacao")
 
         # configurações
-        self.service_name_ = "controle_animacao_service"
+        self.service_name_ = "/controle/controle_animacao_service"
         self.animation_topic_ = "esp32/solicitar_animacao"
         self.response_topic_ = "esp32/resposta_animacao"
         self.log_topic_ = "esp32/log"

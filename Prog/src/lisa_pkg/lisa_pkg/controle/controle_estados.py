@@ -42,9 +42,9 @@ class ControleEstadosNode(Node):
             "MODO_LISA_ENSINA" :    8
         }
         # publica estado quando houver mudança
-        self.publisher_ =  self.create_publisher(String, "controle/estado_atual", 10)
+        self.publisher_ =  self.create_publisher(String, "/controle/estado_atual", 10)
         # serviço para que outros nós possam solicitar mudança de estado
-        self.mudar_estado_srv_ = self.create_service(ControleEstados, 'mudar_estado_service', self.mudar_estado_callback)  
+        self.mudar_estado_srv_ = self.create_service(ControleEstados, '/controle/mudar_estado_service', self.mudar_estado_callback)  
         # publica estado inicial (MENU)
         self.estado_atual = "MENU"
         self.publicar_estado() 

@@ -33,7 +33,7 @@ Esse código está uns 80% vibe codado atualmente, pois a lógica para pegar o m
             - request: string estado_desejado 
             - response: bool sucesso
 
-    Cliente no serviço: /controle_tela_service
+    Cliente no serviço: /controle/controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
             - request: string gif_desejado 
             - response: bool sucesso
@@ -94,23 +94,23 @@ class DetectorComandosDeVoz(Node):
 
 
         # SERVIÇO DE CONTROLE DE ESTADOS
-        self.controle_estados_client_ = self.create_client(ControleEstados, "mudar_estado_service")
+        self.controle_estados_client_ = self.create_client(ControleEstados, "/controle/mudar_estado_service")
 
         while not self.controle_estados_client_.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info("Esperando serviço mudar_estado_service...")
+            self.get_logger().info("Esperando serviço /controle/mudar_estado_service...")
 
         self.controle_estados_request_ = ControleEstados.Request()
 
         # SERVIÇO DE CONTROLE DA TELA
-        self.tela_client_ = self.create_client(ControleTela, "controle_tela_service")
+        self.tela_client_ = self.create_client(ControleTela, "/controle/controle_tela_service")
 
         while not self.tela_client_.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info("Esperando serviço controle_tela_service...")
+            self.get_logger().info("Esperando serviço /controle/controle_tela_service...")
 
         self.tela_request_ = ControleTela.Request()
 
         # TÓPICO DO ESTADO ATUAL
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
 
         # MODELO VOSK
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), "models", "vosk-model-small-pt-0.3")
