@@ -13,15 +13,16 @@
 
 #include <std_msgs/msg/string.h>
 
+#include "src/animacoes/animacoes.h"
+#include "src/hardware/led.h"
+
 // ============================================================
 // CONFIGURACOES
 // ============================================================
 
 #define LED_STATUS 2
-#define LED_PIN 4
 
 #define BUFFER_LENGTH 64
-#define ANIMATION_DURATION_MS 5000UL
 
 #define ANIMATION_TOPIC "/esp32/solicitar_animacao"
 #define RESPONSE_TOPIC "/esp32/resposta_animacao"
@@ -89,14 +90,6 @@ enum states {
 };
 
 states state;
-
-// ============================================================
-// CONTROLE DAS ANIMACOES
-// ============================================================
-
-bool animation_running = false;
-
-uint32_t animation_end_time = 0;
 
 // ============================================================
 // PUBLICACAO DE MENSAGENS
@@ -183,33 +176,22 @@ void animation_callback(const void *msgin)
   const char *animation = separator + 1;
 
   // Verifica se ja existe uma animacao em execucao.
-  if (animation_running) {
-
-    publish_response(request_id, false);
-
-    log_info("Requisicao recusada: ESP32 ocupada");
-
-    return;
+  if (animacao_em_execucao()) {
+      publish_response(request_id, false);
+      log_info("Requisicao recusada: ESP32 ocupada");
+      return;
   }
 
-  // Verifica a animacao solicitada.
-  if (strcmp(animation, "dancinha") == 0) {
+  // Tenta iniciar a animacao solicitada.
+  if (iniciar_animacao(animation)) {
 
-    animation_running = true;
-
-    animation_end_time = millis() + ANIMATION_DURATION_MS;
-
-    digitalWrite(LED_PIN, HIGH);
-
-    publish_response(request_id, true);
-
-    log_info("Animacao dancinha iniciada");
+      publish_response(request_id, true);
+      log_info("Animacao iniciada");
 
   } else {
 
-    publish_response(request_id, false);
-
-    log_info("Requisicao recusada: animacao desconhecida");
+      publish_response(request_id, false);
+      log_info("Requisicao recusada: animacao desconhecida ou falha ao iniciar");
   }
 }
 
@@ -217,19 +199,11 @@ void animation_callback(const void *msgin)
 // ATUALIZACAO DA ANIMACAO
 // ============================================================
 
-void update_animation()
-{
-  if (
-    animation_running &&
-    (int32_t)(millis() - animation_end_time) >= 0
-  ) {
-
-    animation_running = false;
-
-    digitalWrite(LED_PIN, LOW);
-
-    log_info("Animacao dancinha finalizada");
-  }
+void update_animation() {
+    // Verifica se alguma animacao terminou durante a atualizacao.
+    if (atualizar_animacao()) {
+        log_info("Animacao finalizada");
+    }
 }
 
 // ============================================================
@@ -390,10 +364,9 @@ void setup()
   set_microros_transports();
 
   pinMode(LED_STATUS, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
-
   digitalWrite(LED_STATUS, LOW);
-  digitalWrite(LED_PIN, LOW);
+  
+  led_inicializar();
 
   // Inicializa buffer das requisicoes.
   request_msg.data.data = rx_buffer;
@@ -482,9 +455,7 @@ void loop()
       destroy_entities();
 
       // Interrompe a animacao em caso de desconexao.
-      animation_running = false;
-
-      digitalWrite(LED_PIN, LOW);
+      finalizar_animacao();
 
       state = WAITING_AGENT;
 
