@@ -102,7 +102,6 @@ class ControleAnimacaoNode(Node):
 
         # fim da inicialização
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
-        self.get_logger().info(f"Serviço disponível: /{self.service_name_}")
 
 
     def animation_service_callback(self, request, response):

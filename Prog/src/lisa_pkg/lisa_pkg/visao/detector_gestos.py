@@ -4,6 +4,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
+from lisa_pkg.controle.qos_estado_atual import qos_estado
 
 import rclpy
 from rclpy.node import Node
@@ -97,7 +98,8 @@ class DetectorGestosNode(Node):
         self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, qos_profile_sensor_data)
         self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", qos_profile_sensor_data)
         self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmarks", qos_profile_sensor_data)
-        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
+        
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
 
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'gesture_recognizer.task')

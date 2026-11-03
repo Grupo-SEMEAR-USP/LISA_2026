@@ -4,10 +4,12 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
+from lisa_pkg.controle.qos_estado_atual import qos_estado
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
@@ -45,7 +47,8 @@ class DetectorPoseNode(Node):
 
         self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_pose, qos_profile_sensor_data)
         self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/pose_landmarks", qos_profile_sensor_data)
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
 
         self.bridge_ = CvBridge()
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), 'models', 'pose_landmarker_lite.task')

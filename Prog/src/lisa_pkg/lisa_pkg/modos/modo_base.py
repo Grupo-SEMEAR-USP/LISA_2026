@@ -3,7 +3,10 @@
 from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados
 from lisa_interfaces.srv import ControleTela
+from lisa_pkg.controle.qos_estado_atual import qos_estado
+
 from rclpy.node import Node
+
 from typing import Callable
 
 '''
@@ -42,7 +45,7 @@ class ModoBaseNode(Node):
             self.get_logger().info(f'Esperando serviço controle_estados_service')
 
         # inscrição no tópico do estado_atual
-        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
         self.ativo = False
 
         # controle de esperas (wait())

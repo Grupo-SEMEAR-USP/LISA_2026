@@ -2,6 +2,7 @@
 
 from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados, ControleTela
+from lisa_pkg.controle.qos_estado_atual import qos_estado
 
 import rclpy
 from rclpy.node import Node
@@ -9,7 +10,6 @@ from ament_index_python.packages import get_package_share_directory
 
 from unidecode import unidecode
 from vosk import Model, KaldiRecognizer
-
 import json
 import os
 import subprocess
@@ -110,7 +110,7 @@ class DetectorComandosDeVoz(Node):
         self.tela_request_ = ControleTela.Request()
 
         # TÓPICO DO ESTADO ATUAL
-        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
 
         # MODELO VOSK
         self.model_path_ = os.path.join(get_package_share_directory("lisa_pkg"), "models", "vosk-model-small-pt-0.3")

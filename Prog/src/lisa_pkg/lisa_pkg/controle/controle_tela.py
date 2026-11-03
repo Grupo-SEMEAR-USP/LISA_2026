@@ -2,6 +2,7 @@
 
 from std_msgs.msg import String
 from lisa_interfaces.srv import ControleTela
+from lisa_pkg.controle.qos_estado_atual import qos_estado
 
 import rclpy
 from rclpy.node import Node
@@ -47,8 +48,9 @@ class ControleTelaNode(Node):
         self.pending_state_ = None
         self.sleep_timer_ = None
 
-        self.srv_ = self.create_service(ControleTela, '/controle/controle_tela_service', self.controle_tela_callback)   
-        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.srv_ = self.create_service(ControleTela, '/controle/controle_tela_service', self.controle_tela_callback) 
+
+        self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
 
         if not self.start_background_gif_loop():
             self.get_logger().error("Erro durante a inicialização do gif de fundo (background)")

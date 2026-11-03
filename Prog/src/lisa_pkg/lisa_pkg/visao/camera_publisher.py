@@ -3,10 +3,12 @@
 from std_msgs.msg import String
 from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
 from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
+from lisa_pkg.controle.qos_estado_atual import qos_estado
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
 
 import cv2
 
@@ -62,7 +64,7 @@ class CameraPublisherNode(Node):
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 
-        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, 10)
+        self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
         self.ativo = False
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
