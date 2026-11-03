@@ -11,6 +11,11 @@ def generate_launch_description():
         arguments=["serial", "--dev", "/dev/ttyACM0"]
     )
 
+    controle_animacao = Node(
+        package="lisa_pkg",
+        executable="controle_animacao"
+    )
+
     controle_estados = Node(
         package="lisa_pkg",
         executable="controle_estados"
@@ -88,6 +93,7 @@ def generate_launch_description():
     )
 
     ld.add_action(micro_ros_agent)
+    ld.add_action(controle_animacao)
     ld.add_action(controle_estados)
     ld.add_action(controle_tela)
     ld.add_action(camera_publisher)
