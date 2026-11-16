@@ -15,6 +15,7 @@
 
 #include "src/animacoes/animacoes.h"
 #include "src/hardware/led.h"
+#include "src/hardware/motores.h"
 
 // ============================================================
 // CONFIGURACOES
@@ -367,6 +368,7 @@ void setup()
   digitalWrite(LED_STATUS, LOW);
   
   led_inicializar();
+  motores_inicializar();
 
   // Inicializa buffer das requisicoes.
   request_msg.data.data = rx_buffer;

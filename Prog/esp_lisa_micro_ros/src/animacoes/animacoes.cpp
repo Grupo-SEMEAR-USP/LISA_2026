@@ -3,6 +3,8 @@
 
 #include "animacoes.h"
 #include "acender_led.h"
+#include "sim.h"
+#include "nao.h"
 
 // Tipos de ponteiros para as funções das animacoes.
 typedef void (*FuncaoAnimacao)();
@@ -27,6 +29,20 @@ static const Animacao animacoes[] = {
         atualizar_acender_led,
         finalizar_acender_led,
         acender_led_em_execucao
+    },
+    {
+        "sim",
+        iniciar_sim,
+        atualizar_sim,
+        finalizar_sim,
+        sim_em_execucao
+    },
+    {
+        "nao",
+        iniciar_nao,
+        atualizar_nao,
+        finalizar_nao,
+        nao_em_execucao
     }
 };
 
