@@ -107,6 +107,11 @@ class CameraPublisherNode(Node):
 
 
     def estado_atual_sub_callback(self,msg):
+        if msg.data in ["MODO_DESENHO"]:
+            self.alterar_fps(30) # aumenta FPS no modo desenho para ficar mais fluido
+        else:
+            self.alterar_fps(self.get_parameter("fps").value)
+
         if msg.data in ["MODO_GESTOS", "MODO_DESENHO", "MODO_MIMICA"]:
             if not self.ativo:
                 self.ativo = True
@@ -114,6 +119,19 @@ class CameraPublisherNode(Node):
             if self.ativo:
                 self.ativo = False
 
+    def alterar_fps(self, novo_fps):
+        if self.fps_ == novo_fps:
+            return
+        self.fps_ = novo_fps
+        self.cap_.set(cv2.CAP_PROP_FPS, self.fps_)
+        self.destroy_timer(self.timer_)
+        self.timer_ = self.create_timer(
+            1.0 / self.fps_,
+            self.publish_frame
+        )
+        self.get_logger().info(
+            f"FPS da câmera alterado para {self.fps_}"
+        )
 
     def destroy_node(self):
         if hasattr(self, "cap_"):

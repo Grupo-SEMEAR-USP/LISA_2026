@@ -54,12 +54,21 @@ class DetectorComandosDeVoz(Node):
             "acorda lisa": "WAKE",
 
             "modo gestos": "MODO_GESTOS",
+
             "modo mímica": "MODO_MIMICA",
+
             "modo conversa": "MODO_CONVERSA",
+
             "modo desenho": "MODO_DESENHO",
+
             "modo atropelo": "MODO_TROPELO",
+
             "modo soneca": "MODO_SONECA",
+
             "modo aura": "MODO_AURA",
+            "se quiserem" : "MODO_AURA",
+            "ativar aura" : "MODO_AURA",
+
             "lisa ensina": "MODO_LISA_ENSINA"
         }
 

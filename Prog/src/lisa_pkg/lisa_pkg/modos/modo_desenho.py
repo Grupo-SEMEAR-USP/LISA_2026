@@ -64,7 +64,7 @@ class ModoDesenhoNode(ModoBaseNode):
         self.window_counter = 0
         self.window_name = "Desenho"
 
-        timer_period = 1/10 # 10 Hz
+        timer_period = 1/60 # 60 Hz
         self.timer_ = self.create_timer(timer_period, self.desenhar_na_tela)
 
 
