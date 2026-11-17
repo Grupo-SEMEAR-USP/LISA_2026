@@ -3,13 +3,14 @@
 from lisa_pkg.modos.modo_base import ModoBaseNode
 from lisa_pkg.visao.qos_camera import qos_camera
 
+import rclpy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
 
-import rclpy
 import cv2
+import numpy as np
 
 '''
 Modo Desenho
@@ -45,18 +46,17 @@ class ModoDesenhoNode(ModoBaseNode):
         self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/hand_landmarks", self.landmarks_sub_cb, qos_camera)
         self.bridge_ = CvBridge()
 
-        self.frame_height_ = 0
-        self.frame_width_ = 0
-
         self.current_frame = None
         self.current_gesture = None
         self.last_gesture = None
-        self.current_landmarks = None
-        self.points_to_be_drawn = []
-        self.points_to_remove_on_release = 3
+
+        self.drawing_canvas = None
+        self.drawing_mask = None
+        self.previous_point = None
+        self.line_thickness = 3
+
         self.current_color = 0
         self.color_list = [(0,0,255),(0,255,0),(255,0,0)]
-        self.current_color = 0
 
         self.pronto_para_desenhar = False
         self.janela_criada = False
@@ -65,7 +65,7 @@ class ModoDesenhoNode(ModoBaseNode):
         self.window_counter = 0
         self.window_name = "Desenho"
 
-        timer_period = 1/60 # 60 Hz
+        timer_period = 1/30 # 30 Hz
         self.timer_ = self.create_timer(timer_period, self.desenhar_na_tela)
 
 
@@ -73,13 +73,10 @@ class ModoDesenhoNode(ModoBaseNode):
         if self.current_frame is None or not self.ativo or not self.pronto_para_desenhar:
             return
 
-        frame = self.current_frame
+        frame = self.current_frame.copy()
         gesture = self.current_gesture
-        landmarks = self.current_landmarks
-        
-        self.frame_height_, self.frame_width_, _ = frame.shape
 
-        # comandos do modo desenho
+        # Comandos do modo desenho
         if gesture == "four" and self.last_gesture != "four":
             self.desativar()
             self.send_controle_estados_request("MENU")
@@ -89,24 +86,17 @@ class ModoDesenhoNode(ModoBaseNode):
             self.proxima_cor()
 
         elif gesture == "two" and self.last_gesture != "two":
-            self.points_to_be_drawn.clear()
+            self.limpar_desenho()
 
-        elif gesture == "one" and landmarks is not None and len(landmarks) > 8:
-            self.points_to_be_drawn.append(landmarks[8])
-
-        # remove o utimo ponto quando troca de one para outro, para evitar pontos errados na transição dos estados
-        if self.last_gesture == "one" and gesture != "one":
-            points_to_remove = min(self.points_to_remove_on_release, len(self.points_to_be_drawn))
-            if points_to_remove > 0:
-                del self.points_to_be_drawn[-points_to_remove:]
-
-        # atualiza ultimo gesto
+        # Atualiza último gesto
         self.last_gesture = gesture
 
-        # mostra o frame com o desenho
-        for p in self.points_to_be_drawn:
-            cv2.circle(frame, (int(p.x),int(p.y)), 3, self.color_list[self.current_color], -1)
-        
+        # Sobrepõe o desenho à imagem atual da câmera.
+        if self.drawing_canvas is not None:
+            mask = self.drawing_mask > 0
+            frame[mask] = self.drawing_canvas[mask]
+
+        # Redimensiona e exibe a imagem
         frame = cv2.resize(frame, (self.display_width, self.display_height))
 
         cv2.imshow(self.window_name, frame)
@@ -115,9 +105,26 @@ class ModoDesenhoNode(ModoBaseNode):
             pass
 
 
+    def limpar_desenho(self):
+        if self.drawing_canvas is not None:
+            self.drawing_canvas[:] = 0
+
+        if self.drawing_mask is not None:
+            self.drawing_mask[:] = 0
+
+        self.previous_point = None
+
+
     def frame_sub_cb(self, msg):
         try:
             self.current_frame = self.bridge_.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+
+            # Inicializa o canvas caso ainda não exista ou a resolução da câmera mude.
+            if self.drawing_canvas is None or self.drawing_canvas.shape != self.current_frame.shape:
+                self.drawing_canvas = np.zeros_like(self.current_frame)
+                self.drawing_mask = np.zeros(self.current_frame.shape[:2], dtype=np.uint8)
+                self.previous_point = None
+
         except Exception as e:
             self.get_logger().error(f"Erro durante o processamento do frame: {e}")
 
@@ -125,9 +132,74 @@ class ModoDesenhoNode(ModoBaseNode):
     def gesture_sub_cb(self, msg):
         self.current_gesture = msg.data
 
+        if self.current_gesture != "one":
+            self.previous_point = None
+
 
     def landmarks_sub_cb(self, msg):
-        self.current_landmarks = msg.points
+        # Não desenha durante a animação de entrada ou fora do modo.
+        if not self.ativo or not self.pronto_para_desenhar:
+            self.previous_point = None
+            return
+
+        # Se não houver landmarks, interrompe o traço.
+        if len(msg.points) <= 8:
+            self.previous_point = None
+            return
+
+        # Só desenha enquanto o gesto "one" estiver ativo.
+        if self.current_gesture != "one":
+            self.previous_point = None
+            return
+
+        if self.drawing_canvas is None:
+            return
+
+        # Utiliza o landmark 8 (ponta do dedo indicador).
+        point = (
+            int(msg.points[8].x),
+            int(msg.points[8].y)
+        )
+
+        # Desenha uma linha entre a posição anterior e a atual.
+        if self.previous_point is not None:
+            cv2.line(
+                self.drawing_canvas,
+                self.previous_point,
+                point,
+                self.color_list[self.current_color],
+                self.line_thickness,
+                cv2.LINE_AA
+            )
+
+            cv2.line(
+                self.drawing_mask,
+                self.previous_point,
+                point,
+                255,
+                self.line_thickness,
+                cv2.LINE_AA
+            )
+        else:
+            cv2.circle(
+                self.drawing_canvas,
+                point,
+                2,
+                self.color_list[self.current_color],
+                -1,
+                cv2.LINE_AA
+            )
+
+            cv2.circle(
+                self.drawing_mask,
+                point,
+                2,
+                255,
+                -1,
+                cv2.LINE_AA
+            )
+
+        self.previous_point = point
 
 
     def proxima_cor(self):
@@ -141,8 +213,8 @@ class ModoDesenhoNode(ModoBaseNode):
 
         # Limpa possíveis dados recebidos antes da ativação.
         self.current_gesture = None
-        self.current_landmarks = None
         self.last_gesture = None
+        self.limpar_desenho()
 
         self.send_tela_request('desenho')
         self.wait(2.5)
@@ -150,9 +222,8 @@ class ModoDesenhoNode(ModoBaseNode):
 
     def after_wait(self):
         self.current_gesture = None
-        self.current_landmarks = None
         self.last_gesture = None
-        self.points_to_be_drawn.clear()
+        self.limpar_desenho()
         self.current_color = 0
 
         cv2.destroyAllWindows()
@@ -198,10 +269,9 @@ class ModoDesenhoNode(ModoBaseNode):
             finally:
                 self.janela_criada = False
 
-        self.points_to_be_drawn.clear()
+        self.limpar_desenho()
         self.last_gesture = None
         self.current_gesture = None
-        self.current_landmarks = None
         self.current_color = 0
 
         super().desativar()
