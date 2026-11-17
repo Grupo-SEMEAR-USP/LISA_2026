@@ -54,6 +54,8 @@ class ModoDesenhoNode(ModoBaseNode):
         self.drawing_mask = None
         self.previous_point = None
         self.line_thickness = 3
+        self.current_pointer = None
+        self.pointer_radius = 4
 
         self.current_color = 0
         self.color_list = [(0,0,255),(0,255,0),(255,0,0)]
@@ -96,6 +98,11 @@ class ModoDesenhoNode(ModoBaseNode):
             mask = self.drawing_mask > 0
             frame[mask] = self.drawing_canvas[mask]
 
+        # Desenha o marcador na ponta do indicador.
+        if self.current_pointer is not None:
+            cv2.circle(frame,self.current_pointer,self.pointer_radius,(0, 0, 0),-1,cv2.LINE_AA)
+            cv2.circle(frame,self.current_pointer,self.pointer_radius - 2,(255, 255, 255),-1,cv2.LINE_AA)
+
         # Redimensiona e exibe a imagem
         frame = cv2.resize(frame, (self.display_width, self.display_height))
 
@@ -137,29 +144,31 @@ class ModoDesenhoNode(ModoBaseNode):
 
 
     def landmarks_sub_cb(self, msg):
-        # Não desenha durante a animação de entrada ou fora do modo.
+        # Não atualiza o marcador durante a animação de entrada ou fora do modo.
         if not self.ativo or not self.pronto_para_desenhar:
             self.previous_point = None
+            self.current_pointer = None
             return
 
-        # Se não houver landmarks, interrompe o traço.
+        # Se não houver landmarks, interrompe o traço e remove o marcador.
         if len(msg.points) <= 8:
             self.previous_point = None
-            return
-
-        # Só desenha enquanto o gesto "one" estiver ativo.
-        if self.current_gesture != "one":
-            self.previous_point = None
+            self.current_pointer = None
             return
 
         if self.drawing_canvas is None:
             return
 
         # Utiliza o landmark 8 (ponta do dedo indicador).
-        point = (
-            int(msg.points[8].x),
-            int(msg.points[8].y)
-        )
+        point = (int(msg.points[8].x), int(msg.points[8].y))
+
+        # Atualiza a posição do marcador, independentemente do gesto.
+        self.current_pointer = point
+
+        # Só desenha enquanto o gesto "one" estiver ativo.
+        if self.current_gesture != "one":
+            self.previous_point = None
+            return
 
         # Desenha uma linha entre a posição anterior e a atual.
         if self.previous_point is not None:
@@ -214,6 +223,7 @@ class ModoDesenhoNode(ModoBaseNode):
         # Limpa possíveis dados recebidos antes da ativação.
         self.current_gesture = None
         self.last_gesture = None
+        self.current_pointer = None
         self.limpar_desenho()
 
         self.send_tela_request('desenho')
@@ -225,6 +235,7 @@ class ModoDesenhoNode(ModoBaseNode):
         self.last_gesture = None
         self.limpar_desenho()
         self.current_color = 0
+        self.current_pointer = None
 
         cv2.destroyAllWindows()
         cv2.waitKey(50)
@@ -273,6 +284,7 @@ class ModoDesenhoNode(ModoBaseNode):
         self.last_gesture = None
         self.current_gesture = None
         self.current_color = 0
+        self.current_pointer = None
 
         super().desativar()
 

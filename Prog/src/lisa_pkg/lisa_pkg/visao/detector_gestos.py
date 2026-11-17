@@ -87,6 +87,10 @@ class Hand():
             self.y_coords_ = [lm.y for lm in landmarks]
         
         self.box_ = Box(min(self.x_coords_), max(self.x_coords_), min(self.y_coords_), max(self.y_coords_))
+        self.center_ = (
+            (self.box_.x_min_ + self.box_.x_max_) / 2,
+            (self.box_.y_min_ + self.box_.y_max_) / 2
+        )
 
 
 # CLASSE PRINCIPAL
@@ -110,7 +114,7 @@ class DetectorGestosNode(Node):
         options = vision.GestureRecognizerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=self.model_path_),
             running_mode=vision.RunningMode.VIDEO,
-            num_hands = 2,
+            num_hands = 4,
             min_hand_detection_confidence=0.7,
             min_hand_presence_confidence=0.5,
             min_tracking_confidence=0.5
@@ -128,6 +132,19 @@ class DetectorGestosNode(Node):
         self.last_gesture_ = "none"
         self.two_handed_gestures_ = ["heart"]   # gestos que precisam ser detectados em duas mãos ao mesmo tempo (precisam ser simétricos)
         self.ativo = False
+
+        # TRACKING DA MÃO
+        self.selected_hand_center_ = None
+        self.hand_lost_frames_ = 0
+
+        self.max_hand_lost_frames_ = 10
+        self.max_hand_tracking_distance_ = 0.20
+
+        # Região de interação (coordenadas normalizadas)
+        self.roi_x_min_ = 0.10
+        self.roi_x_max_ = 0.90
+        self.roi_y_min_ = 0.10
+        self.roi_y_max_ = 0.90
 
         self.get_logger().info(f"Nó '{self.get_name()}' inicializado com sucesso.")
 
@@ -158,86 +175,79 @@ class DetectorGestosNode(Node):
             score = 0
             self.frame_height_, self.frame_width_, _ = frame.shape
             
-            num_detected_hands = len(result.gestures)
+            # Constrói a lista de mãos detectadas.
+            hands = []
 
-            # 1 mão detectada
-            if num_detected_hands == 1:
-                hand1 = Hand(result.gestures[0][0], result.hand_landmarks[0])
+            for i in range(len(result.gestures)):
+                hand = Hand(
+                    result.gestures[i][0],
+                    result.hand_landmarks[i]
+                )
+                hands.append(hand)
 
-                # elimina gestos de duas mãos de serem detectados
-                if hand1.gesture_ not in self.two_handed_gestures_:
-                    self.current_gesture_ = hand1.gesture_
-                    score = hand1.score_
-                else:
-                    self.current_gesture_ = "none"
-                    score = 0
+            # Seleciona a mão que será acompanhada.
+            selected_hand = self.select_hand(hands)
 
-                # desenha landmarks
-                if hand1.landmarks is not None:
-                    landmarks_to_draw = hand1.landmarks
-    
-            # 2 mãos detectadas
-            elif num_detected_hands == 2:
-                hand1 = Hand(result.gestures[0][0], result.hand_landmarks[0])
-                hand2 = Hand(result.gestures[1][0], result.hand_landmarks[1])
+            self.current_gesture_ = "none"
+            score = 0
+
+            # Utiliza somente a mão selecionada como referência.
+            if selected_hand is not None:
+                landmarks_to_draw = selected_hand.landmarks
 
                 # GESTOS SIMPLES
-                    # se forem detectados dois gestos diferentes nas duas mãos, publica o da mão que está mais próxima (maior área)
-                    # caso contrário, só publica
+                if selected_hand.gesture_ not in self.two_handed_gestures_:
+                    self.current_gesture_ = selected_hand.gesture_
+                    score = selected_hand.score_
+
                 # GESTOS DE DUAS MÃOS
-                    # esses gestos precisam ser detectados nas duas mãos ao mesmo tempo
-                    # além disso, elas precisam estar próximas e ter o mesmo tamanho aproximado
-
-                if hand1.gesture_ != hand2.gesture_:
-                    # hand1 > hand2:
-                    if hand1.box_.area_ > hand2.box_.area_:
-                        # elimina gestos de duas mãos de serem detectados
-                        if hand1.gesture_ not in self.two_handed_gestures_:
-                            self.current_gesture_ = hand1.gesture_
-                            score = hand1.score_
-                        else:
-                            self.current_gesture_ = "none"
-                            score = 0
-                    # hand1 < hand2:
-                    else:
-                        # elimina gestos de duas mãos de serem detectados
-                        if hand2.gesture_ not in self.two_handed_gestures_:
-                            self.current_gesture_ = hand2.gesture_
-                            score = hand2.score_
-                        else:
-                            self.current_gesture_ = "none"
-                            score = 0
-                # gesto igual nas duas mãos, e não é gesto de duas mãos:
-                elif hand1.gesture_ not in self.two_handed_gestures_:
-                    self.current_gesture_ = hand1.gesture_
-                    score = (hand1.score_ + hand2.score_)/2
-                
-                # gesto igual nas duas mãos, e é gesto de duas mãos:
                 else:
-                    # verifica se as áreas se interssectam
-                    intersect = hand1.box_.intersects(hand2.box_)
-                    # verifica se as duas mãos têm aproximadamente a mesma área (mesmo "tamanho")
-                    if max(hand1.box_.area_, hand2.box_.area_) > 0:
-                        proporcao = min(hand1.box_.area_, hand2.box_.area_) / max(hand1.box_.area_, hand2.box_.area_)
-                    else:
-                        proporcao = 0
-                    
-                    same_size = proporcao > 0.7   # a mão menor deve ter pelo menos 70% do tamanho da maior
-                    
-                    if intersect and same_size:
-                        self.current_gesture_ = hand1.gesture_
-                        score = (hand1.score_ + hand2.score_) / 2
-                    else:
-                        self.current_gesture_ = "none"
-                        score = 0
+                    # Procura possíveis parceiras entre todas as outras mãos.
+                    candidate_hands = [
+                        hand for hand in hands
+                        if hand is not selected_hand
+                        and hand.gesture_ == selected_hand.gesture_
+                    ]
 
-                # desenha landmarks apenas da maior mão (ou hand1 se forem iguais)
-                if hand1.landmarks is not None and hand2.landmarks is not None:
-                    if hand1.box_.area_ >= hand2.box_.area_:
-                        landmarks_to_draw = hand1.landmarks 
-                    else:
-                        landmarks_to_draw = hand2.landmarks
-            
+                    valid_pairs = []
+
+                    for other_hand in candidate_hands:
+
+                        # Verifica se as bounding boxes se intersectam.
+                        intersect = selected_hand.box_.intersects(other_hand.box_)
+                        if not intersect:
+                            continue
+
+                        # Verifica se as mãos possuem tamanhos semelhantes.
+                        max_area = max(selected_hand.box_.area_,other_hand.box_.area_)
+
+                        if max_area <= 0:
+                            continue
+
+                        proporcao = (min(selected_hand.box_.area_,other_hand.box_.area_) / max_area)
+
+                        if proporcao > 0.7:
+                            # Calcula a distância entre os centros das mãos.
+                            dx = selected_hand.center_[0] - other_hand.center_[0]
+                            dy = selected_hand.center_[1] - other_hand.center_[1]
+
+                            distancia = (dx ** 2 + dy ** 2) ** 0.5
+
+                            valid_pairs.append((proporcao, distancia, other_hand))
+
+                    # Seleciona a melhor parceira, caso exista.
+                    if valid_pairs:
+                        # Prioriza tamanhos semelhantes e, em caso de
+                        # empate, a menor distância entre os centros.
+                        _, _, other_hand = min(
+                            valid_pairs,
+                            key=lambda pair: (-pair[0], pair[1])
+                        )
+
+                        self.current_gesture_ = selected_hand.gesture_
+
+                        score = (selected_hand.score_ + other_hand.score_) / 2
+   
             # Publica o gesto imediatamente no modo desenho.
             # Nos outros modos, mantém a estabilização de 5 frames.
             if self.num_gesture_frames_ == 1:
@@ -277,6 +287,9 @@ class DetectorGestosNode(Node):
                 self.landmarks_publisher_.publish(Polygon())
 
             if mostrar_landmarks:
+                # Desenha a região de interação.
+                frame_to_show = self.draw_roi(frame_to_show)
+                # Desenha landmarks da mão selecionada
                 if landmarks_to_draw is not None:
                     frame_to_show = self.draw_hand_landmarks(frame_to_show, landmarks_to_draw)
                 
@@ -287,6 +300,86 @@ class DetectorGestosNode(Node):
             self.get_logger().error(f"Erro durante o processamento do frame: {e}")
         finally:  
             self.processing_ = False
+
+
+    def select_hand(self, hands):
+        """
+        Seleciona inicialmente a mão mais próxima do centro da
+        região de interação e mantém sua identidade pela posição
+        nos frames seguintes.
+        """
+
+        # Nenhuma mão detectada
+        if not hands:
+            self.hand_lost_frames_ += 1
+
+            if self.hand_lost_frames_ > self.max_hand_lost_frames_:
+                self.selected_hand_center_ = None
+                self.hand_lost_frames_ = 0
+
+            return None
+
+        # PRIMEIRA SELEÇÃO
+        if self.selected_hand_center_ is None:
+
+            center_x = (self.roi_x_min_ + self.roi_x_max_) / 2
+            center_y = (self.roi_y_min_ + self.roi_y_max_) / 2
+
+            hands_in_roi = [
+                hand for hand in hands
+                if self.roi_x_min_ <= hand.center_[0] <= self.roi_x_max_
+                and self.roi_y_min_ <= hand.center_[1] <= self.roi_y_max_
+            ]
+
+            if not hands_in_roi:
+                return None
+
+            selected_hand = min(
+                hands_in_roi,
+                key=lambda hand: (
+                    (hand.center_[0] - center_x) ** 2 +
+                    (hand.center_[1] - center_y) ** 2
+                )
+            )
+
+            self.selected_hand_center_ = selected_hand.center_
+            self.hand_lost_frames_ = 0
+
+            return selected_hand
+
+        # CONTINUIDADE DO TRACKING
+        selected_hand = min(
+            hands,
+            key=lambda hand: (
+                (hand.center_[0] - self.selected_hand_center_[0]) ** 2 +
+                (hand.center_[1] - self.selected_hand_center_[1]) ** 2
+            )
+        )
+
+        dx = selected_hand.center_[0] - self.selected_hand_center_[0]
+        dy = selected_hand.center_[1] - self.selected_hand_center_[1]
+
+        distance = (dx ** 2 + dy ** 2) ** 0.5
+
+        if distance <= self.max_hand_tracking_distance_:
+            self.selected_hand_center_ = selected_hand.center_
+            self.hand_lost_frames_ = 0
+
+            return selected_hand
+
+        # A mão selecionada não foi encontrada.
+        self.hand_lost_frames_ += 1
+
+        if self.hand_lost_frames_ > self.max_hand_lost_frames_:
+            self.selected_hand_center_ = None
+            self.hand_lost_frames_ = 0
+
+        return None
+
+
+    def reset_hand_tracking(self):
+        self.selected_hand_center_ = None
+        self.hand_lost_frames_ = 0
 
 
     def publish_landmarks(self, landmarks):
@@ -304,6 +397,8 @@ class DetectorGestosNode(Node):
         if msg.data in ["MODO_DESENHO", "MODO_GESTOS"]:
             if not self.ativo:
                 self.ativo = True
+                self.reset_hand_tracking()
+
             if msg.data == "MODO_DESENHO":
                 # passa a publicar o gesto sempre que detectar, sem esperar por 5 frames seguidos, para sincronizar taxa de publicação com o fps da câmera
                 self.num_gesture_frames_ = 1    
@@ -316,6 +411,7 @@ class DetectorGestosNode(Node):
         else:
             if self.ativo:
                 self.ativo = False
+                self.reset_hand_tracking()
 
 
     def draw_hand_landmarks(self, image, landmarks):
@@ -327,6 +423,21 @@ class DetectorGestosNode(Node):
 
         for point in pixel_landmarks:
             cv2.circle(image, point, 4, (0, 0, 255), -1)
+
+        return image
+
+
+    def draw_roi(self, image):
+        height, width = image.shape[:2]
+
+        # Converte as coordenadas normalizadas para pixels.
+        x_min = int(self.roi_x_min_ * width)
+        x_max = int(self.roi_x_max_ * width)
+        y_min = int(self.roi_y_min_ * height)
+        y_max = int(self.roi_y_max_ * height)
+
+        # Desenha o retângulo da região de interação.
+        cv2.rectangle(image,(x_min, y_min),(x_max, y_max),(0, 255, 255),2)
 
         return image
 
