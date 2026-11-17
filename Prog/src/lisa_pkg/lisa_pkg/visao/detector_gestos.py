@@ -5,10 +5,10 @@ from cv_bridge import CvBridge
 from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
 from lisa_pkg.controle.qos_estado_atual import qos_estado
+from lisa_pkg.visao.qos_camera import qos_camera
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
@@ -21,7 +21,9 @@ import os
 Detector de Gestos de Mão
 
 Processa o frame da câmera com mediapipe e publica os gestos de mão que forem detectados.
-Precisa encontrar o gesto em 5 frames seguidos antes de publicar, ou seja, a frequência de publicação desse nó é no máximo 1/5 do fps da câmera.
+No MODO_GESTOS, exige a detecção do mesmo gesto em 5 frames consecutivos.
+No MODO_DESENHO, publica o resultado imediatamente para reduzir a latência.
+Também publica continuamente os landmarks da mão selecionada.
 
     Parâmetros:
         - mostrar_landmarks: mostra frame com landmarks detectados na tela (padrão=False)
@@ -95,9 +97,10 @@ class DetectorGestosNode(Node):
 
         self.declare_parameter("mostrar_landmarks", False)
 
-        self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, qos_profile_sensor_data)
-        self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", qos_profile_sensor_data)
-        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmarks", qos_profile_sensor_data)
+        self.subscriber_ = self.create_subscription(Image, "visao/frame", self.detect_gesture, qos_camera)
+
+        self.gesture_publisher_ =  self.create_publisher(String, "visao/gestos", qos_camera)
+        self.landmarks_publisher_ =  self.create_publisher(Polygon, "visao/hand_landmarks", qos_camera)
         
         self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
 
@@ -119,7 +122,7 @@ class DetectorGestosNode(Node):
         self.str_msg_ = String()
         self.processing_ = False # variável para travar o recebimento de frames, caso o nó ainda esteja processando o frame anterior
         self.min_gesture_score_ = 0.75 # só publica se o score for de 75% ou mais 
-        self.gesture_counter_ = 0 # contador para verificar quantas vezes seguidas o gesto foi detectado
+        self.gesture_counter_ = 1 # contador para verificar quantas vezes seguidas o gesto foi detectado
         self.num_gesture_frames_ = 5 # é necessário encontrar o mesmo gesto em 5 frames seguidos para publicá-lo
         self.current_gesture_ = "none"
         self.last_gesture_ = "none"
@@ -169,9 +172,8 @@ class DetectorGestosNode(Node):
                     self.current_gesture_ = "none"
                     score = 0
 
-                # publica landmarks
+                # desenha landmarks
                 if hand1.landmarks is not None:
-                    self.publish_landmarks(hand1.landmarks)
                     landmarks_to_draw = hand1.landmarks
     
             # 2 mãos detectadas
@@ -229,32 +231,50 @@ class DetectorGestosNode(Node):
                         self.current_gesture_ = "none"
                         score = 0
 
-                # Publica landmarks apenas da maior mão (ou hand1 se forem iguais)
+                # desenha landmarks apenas da maior mão (ou hand1 se forem iguais)
                 if hand1.landmarks is not None and hand2.landmarks is not None:
                     if hand1.box_.area_ >= hand2.box_.area_:
-                        self.publish_landmarks(hand1.landmarks)
                         landmarks_to_draw = hand1.landmarks 
                     else:
-                        self.publish_landmarks(hand2.landmarks)
                         landmarks_to_draw = hand2.landmarks
             
-            # Atualiza contador
-            if self.current_gesture_ == self.last_gesture_:
-                if self.current_gesture_ == "none" or score >= self.min_gesture_score_:
-                    self.gesture_counter_ += 1
-                else:
-                    self.gesture_counter_ = 0
-            else:
-                self.gesture_counter_ = 0
+            # Publica o gesto imediatamente no modo desenho.
+            # Nos outros modos, mantém a estabilização de 5 frames.
+            if self.num_gesture_frames_ == 1:
+                self.str_msg_.data = (
+                    self.current_gesture_
+                    if score >= self.min_gesture_score_
+                    else "none"
+                )
 
-            # Publica o resultado
-            if self.gesture_counter_ >= self.num_gesture_frames_:
-                self.str_msg_.data = self.current_gesture_
-                #self.get_logger().info(f"Gesto detectado: {self.current_gesture_}, Score: {score:.2f}")
                 self.gesture_publisher_.publish(self.str_msg_)
-                self.gesture_counter_ = 0
+
+            else:
+                # Atualiza contador
+                if self.current_gesture_ == self.last_gesture_:
+                    if self.current_gesture_ == "none" or score >= self.min_gesture_score_:
+                        self.gesture_counter_ += 1
+                    else:
+                        self.gesture_counter_ = 0
+                else:
+                    self.gesture_counter_ = 1 if (
+                        self.current_gesture_ == "none" or score >= self.min_gesture_score_
+                    ) else 0
+
+                # Publica o resultado após a estabilização
+                if self.gesture_counter_ >= self.num_gesture_frames_:
+                    self.str_msg_.data = self.current_gesture_
+                    self.gesture_publisher_.publish(self.str_msg_)
+                    self.gesture_counter_ = 0
 
             self.last_gesture_ = self.current_gesture_
+
+            # Publica os landmarks da mão selecionada.
+            if landmarks_to_draw is not None:
+                self.publish_landmarks(landmarks_to_draw)
+            else:
+                # Informa que nenhuma mão foi detectada neste frame.
+                self.landmarks_publisher_.publish(Polygon())
 
             if mostrar_landmarks:
                 if landmarks_to_draw is not None:
@@ -289,6 +309,10 @@ class DetectorGestosNode(Node):
                 self.num_gesture_frames_ = 1    
             else:
                 self.num_gesture_frames_ = 5
+
+            self.gesture_counter_ = 1
+            self.last_gesture_ = "none"
+
         else:
             if self.ativo:
                 self.ativo = False

@@ -4,11 +4,10 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image # interface para publicar o frame da camera (msg)
 from cv_bridge import CvBridge # ponte para transformar a imagem do OpenCV na msg de imagem
 from lisa_pkg.controle.qos_estado_atual import qos_estado
+from lisa_pkg.visao.qos_camera import qos_camera
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
-
 
 import cv2
 
@@ -60,7 +59,7 @@ class CameraPublisherNode(Node):
         self.cap_.set(cv2.CAP_PROP_FPS, self.fps_)
         self.bridge_ = CvBridge()
 
-        self.publisher_ =  self.create_publisher(Image, "visao/frame", qos_profile_sensor_data)
+        self.publisher_ =  self.create_publisher(Image, "visao/frame", qos_camera)
         timer_period = 1/self.fps_
         self.timer_ = self.create_timer(timer_period, self.publish_frame)
 

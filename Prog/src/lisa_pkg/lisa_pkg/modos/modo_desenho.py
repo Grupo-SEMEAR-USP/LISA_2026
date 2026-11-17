@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from lisa_pkg.modos.modo_base import ModoBaseNode
+from lisa_pkg.visao.qos_camera import qos_camera
 
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge 
@@ -8,7 +9,6 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Point32, Polygon
 
 import rclpy
-from rclpy.qos import qos_profile_sensor_data
 import cv2
 
 '''
@@ -39,9 +39,10 @@ class ModoDesenhoNode(ModoBaseNode):
         self.display_width = self.get_parameter("display_width").value
         self.display_height = self.get_parameter("display_height").value
 
-        self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, qos_profile_sensor_data)
-        self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, qos_profile_sensor_data)
-        self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/hand_landmarks", self.landmarks_sub_cb, qos_profile_sensor_data)
+        self.frame_subscriber_ = self.create_subscription(Image, "visao/frame", self.frame_sub_cb, qos_camera)
+
+        self.gesture_subscriber_ =  self.create_subscription(String, "visao/gestos", self.gesture_sub_cb, qos_camera)
+        self.landmarks_subscriber_ =  self.create_subscription(Polygon, "visao/hand_landmarks", self.landmarks_sub_cb, qos_camera)
         self.bridge_ = CvBridge()
 
         self.frame_height_ = 0

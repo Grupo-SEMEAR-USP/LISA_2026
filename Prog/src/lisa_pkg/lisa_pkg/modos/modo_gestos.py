@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 from lisa_pkg.modos.modo_base import ModoBaseNode
+from lisa_pkg.visao.qos_camera import qos_camera
 
 from std_msgs.msg import String
 
 import rclpy
-from rclpy.qos import qos_profile_sensor_data
 
 '''
 Modo Gestos
@@ -21,7 +21,7 @@ class ModoGestosNode(ModoBaseNode):
 
     def __init__(self):
         super().__init__("modo_gestos")
-        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, qos_profile_sensor_data)
+        self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, qos_camera)
         # mapa (dicionário) que associa um gesto a um gif
         self.hand_gesture_request_map_ = {
             "heart" : "love",
