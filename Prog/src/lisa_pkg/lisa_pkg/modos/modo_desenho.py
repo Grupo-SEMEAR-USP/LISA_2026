@@ -83,10 +83,10 @@ class ModoDesenhoNode(ModoBaseNode):
             return
 
         if gesture == "three" and self.last_gesture != "three":
-            self.proxima_cor()
+            self.limpar_desenho()
 
         elif gesture == "two" and self.last_gesture != "two":
-            self.limpar_desenho()
+            self.proxima_cor()
 
         # Atualiza último gesto
         self.last_gesture = gesture
