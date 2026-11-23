@@ -461,6 +461,12 @@ echo
 if [ "$BUILD" = true ]; then
     echo "Construindo a imagem Docker da LISA..."
     docker compose build
+    # Ajusta permissões dos volumes
+    docker compose run --rm --no-deps \
+    --user root \
+    --entrypoint /bin/bash \
+    lisa -lc \
+    "chown -R ${USER_ID:-1000}:${GROUP_ID:-1000} /lisa_ws/build /lisa_ws/install /lisa_ws/log"
     echo
     echo "Compilando o workspace ROS 2..."
     docker compose run --rm --no-deps \
