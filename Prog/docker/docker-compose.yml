@@ -18,7 +18,7 @@ services:
       - "${VIDEO_GID}"
       # Permite acesso às portas seriais, como /dev/ttyACM0.
       - "${DIALOUT_GID}"
-    
+
     network_mode: host
     ipc: host
     init: true
@@ -45,10 +45,11 @@ services:
       # Código fonte: alterações Python ficam disponíveis sem rebuild.
       - ../src:/lisa_ws/src:rw
 
-      # setup.py instala modelos/GIFs em share/lisa_pkg.
-      # Estas montagens mantêm esses arquivos sincronizados com o host.
-      - ../src/lisa_pkg/models:/lisa_ws/install/lisa_pkg/share/lisa_pkg/models:ro
-      - ../src/lisa_pkg/telas:/lisa_ws/install/lisa_pkg/share/lisa_pkg/telas:ro
+      # Resultados persistentes do colcon.
+      # Evitam recompilar todo o workspace a cada execução.
+      - lisa_build:/lisa_ws/build
+      - lisa_install:/lisa_ws/install
+      - lisa_log:/lisa_ws/log
 
       # X11/XWayland.
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
@@ -67,3 +68,13 @@ services:
     stdin_open: true
     tty: true
     restart: "no"
+
+
+# ============================================================
+# Volumes persistentes
+# ============================================================
+
+volumes:
+  lisa_build:
+  lisa_install:
+  lisa_log:

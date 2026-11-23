@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM ros:jazzy-ros-base
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -12,7 +14,9 @@ WORKDIR /lisa_ws
 # Dependências do sistema
 # ============================================================
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-dev \
     python3-setuptools \
@@ -54,9 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-jazzy-geometry-msgs \
     ros-jazzy-sensor-msgs \
     ros-jazzy-std-msgs \
-    ros-jazzy-micro-ros-msgs \
-    && rm -rf /var/lib/apt/lists/*
-
+    ros-jazzy-micro-ros-msgs
 
 # ============================================================
 # Dependências Python
@@ -66,9 +68,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY docker/requirements.txt /tmp/requirements.txt
 
-RUN python3 -m pip install \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install \
     --break-system-packages \
-    --no-cache-dir \
     -r /tmp/requirements.txt
 
 
@@ -80,9 +82,9 @@ RUN python3 -m pip install \
 # compatível com o restante do projeto.
 # ============================================================
 
-RUN python3 -m pip install \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install \
     --break-system-packages \
-    --no-cache-dir \
     'numpy==1.26.4' \
     'absl-py~=2.3' \
     'flatbuffers~=25.9' \
@@ -100,21 +102,16 @@ RUN python3 -m pip install \
 # compatíveis com o restante do projeto.
 # ============================================================
 
-RUN python3 -m pip install \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install \
     --break-system-packages \
-    --no-cache-dir \
     --no-deps \
     'mediapipe==0.10.15'
 
 
 # ============================================================
-# Código ROS 2
+# Configuração do ambiente
 # ============================================================
-
-COPY src /lisa_ws/src
-
-RUN source /opt/ros/jazzy/setup.bash && \
-    colcon build --symlink-install
 
 RUN mkdir -p /tmp/lisa-home/.ros /tmp/lisa-cache && \
     printf '%s\n' \
@@ -141,6 +138,7 @@ RUN mkdir -p /tmp/lisa-home/.ros /tmp/lisa-cache && \
         "PS1='\\[\\e[1;32m\\]lisa@docker\\[\\e[0m\\]:\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ '" \
         > /tmp/lisa-home/.bashrc && \
     chown -R 1000:1000 /tmp/lisa-home /tmp/lisa-cache
+
 
 # ============================================================
 # Entrypoint

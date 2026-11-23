@@ -2,6 +2,10 @@
 outros/
 esp_lisa_micro_ros/
 
+# Código ROS 2
+# O código será montado diretamente pelo docker-compose.
+src/
+
 # Git
 .git/
 
@@ -13,6 +17,10 @@ log/
 # Cache e arquivos temporários do Python
 **/__pycache__/
 *.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.venv/
+**/venv/
 
 # Arquivos temporários de editores
 **/*.swp

@@ -10,7 +10,7 @@
 #   ./run_docker.sh --build --hide-cursor
 #
 # Opções:
-#   --build        Constrói ou reconstrói a imagem Docker sem iniciar a LISA.
+#   --build        Constrói a imagem Docker e compila o workspace ROS 2.
 #   --hide-cursor  Oculta temporariamente o cursor do GNOME.
 #   --help         Exibe as opções disponíveis.
 # ============================================================
@@ -457,11 +457,19 @@ echo "             LISA v3 - Docker"
 echo "=============================================="
 echo
 
+
 if [ "$BUILD" = true ]; then
     echo "Construindo a imagem Docker da LISA..."
     docker compose build
     echo
-    echo "Imagem construída com sucesso!"
+    echo "Compilando o workspace ROS 2..."
+    docker compose run --rm --no-deps \
+        --entrypoint /bin/bash \
+        lisa -lc \
+        'source /opt/ros/jazzy/setup.bash && cd /lisa_ws && colcon build --symlink-install'
+
+    echo
+    echo "Imagem e workspace construídos com sucesso!"
     echo
     exit 0
 fi
