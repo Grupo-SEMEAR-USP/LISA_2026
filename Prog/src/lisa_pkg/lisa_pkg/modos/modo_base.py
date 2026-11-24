@@ -24,10 +24,7 @@ MODO BASE, DO QUAL TODOS OS MODOS HERDAM FUNÇÕES BÁSICAS, CLIENTS DE TELA E E
             - response: bool sucesso
 
     Tópico inscrito: /controle/estado_atual
-        - Tipo da mensagem: std_msgs/msg/String 
-        
-    Tópico inscrito: /controle/gif_finalizado
-        - Tipo da mensagem: std_msgs/msg/String 
+        - Tipo da mensagem: std_msgs/msg/String  
 
 '''
 

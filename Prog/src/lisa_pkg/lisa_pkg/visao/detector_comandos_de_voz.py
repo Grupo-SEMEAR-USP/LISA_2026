@@ -55,9 +55,9 @@ class DetectorComandosDeVoz(Node):
 
             "modo gestos": "MODO_GESTOS",
 
-            "modo mímica": "MODO_MIMICA",
+            #"modo mímica": "MODO_MIMICA",
 
-            "modo conversa": "MODO_CONVERSA",
+            #"modo conversa": "MODO_CONVERSA",
 
             "modo desenho": "MODO_DESENHO",
 
@@ -69,7 +69,8 @@ class DetectorComandosDeVoz(Node):
             "se quiserem" : "MODO_AURA",
             "ativar aura" : "MODO_AURA",
 
-            "lisa ensina": "MODO_LISA_ENSINA"
+            "lisa ensina": "MODO_LISA_ENSINA",
+            "modo educativo": "MODO_LISA_ENSINA"
         }
 
         # CONFIGURAÇÕES
@@ -84,8 +85,8 @@ class DetectorComandosDeVoz(Node):
         self.acordado = False
         self.ativo = True
         self.last_command = time.time()
-        self.inactivity_timeout = 5 * 60  # após 5 minutos volta a esperar a wake word
-
+        self.inactivity_timeout = 5 * 60  # após 5 minutos de inatividade, entra no modo soneca
+        
         # CONTROLE DO ÁUDIO
         self.parec_process_ = None
         self.audio_queue_ = queue.Queue(maxsize=50)
@@ -166,9 +167,12 @@ class DetectorComandosDeVoz(Node):
     # DETECÇÃO DE COMANDOS
     def detect_voice_commands(self):
         # Verifica se a LISA está acordada há muito tempo sem receber comandos.
-        if self.acordado and (time.time() - self.last_command >= self.inactivity_timeout):
-            self.get_logger().info("Tempo de inatividade excedido. LISA voltando a dormir.")
+        if (self.estado_atual_lisa == "MENU" and self.acordado and (time.time() - self.last_command >= self.inactivity_timeout)):
+            self.get_logger().info("Tempo de inatividade excedido. LISA entrando em modo soneca.")
             self.acordado = False
+            request = ControleEstados.Request()
+            request.estado_desejado = "MODO_SONECA"
+            self.controle_estados_client_.call_async(request)
 
         # Verifica se o microfone padrão mudou.
         self.check_default_source()
@@ -207,21 +211,23 @@ class DetectorComandosDeVoz(Node):
                         # Se estiver dormindo, acorda a LISA
                         if (self.estado_atual_lisa == "MODO_SONECA"):
                             self.get_logger().info("Comando de despertar recebido.")
-                            self.controle_estados_request_.estado_desejado = ("MENU")
-                            self.controle_estados_client_.call_async(self.controle_estados_request_)
+                            request = ControleEstados.Request()
+                            request.estado_desejado = "MENU"
+                            self.controle_estados_client_.call_async(request)
                             self.send_tela_request("wake_up")
+                            self.acordado = True
                             self.last_command = time.time()
 
-                        # Se estiver no MENU, acorda para receber o próximo comando.
-                        elif not self.acordado:
-                            self.get_logger().info("LISA acordada. Esperando comando.")
+                        # Se estiver no MENU, sempre reproduz o GIF happy.
+                        elif self.estado_atual_lisa == "MENU":
+                            self.get_logger().info("Wake word recebida no MENU.")
                             self.send_tela_request("happy")
                             self.acordado = True
                             self.last_command = time.time()
                         break
 
                     # COMANDO DE MODO
-                    elif self.acordado:
+                    elif self.acordado and self.estado_atual_lisa == "MENU":
                         self.get_logger().info(f"Comando recebido: {command}!")
                         self.controle_estados_request_.estado_desejado = (command)
                         self.controle_estados_client_.call_async(self.controle_estados_request_)
@@ -456,6 +462,11 @@ class DetectorComandosDeVoz(Node):
     # CALLBACK DO ESTADO ATUAL
     def estado_atual_sub_callback(self, msg):
         self.estado_atual_lisa = msg.data
+
+        # Fora do MENU, a LISA não está aguardando comandos.
+        if self.estado_atual_lisa != "MENU":
+            self.acordado = False
+            
         # Microfone ativo somente no MENU ou SONECA
         if self.estado_atual_lisa in ["MENU", "MODO_SONECA"]:
             if not self.ativo:
