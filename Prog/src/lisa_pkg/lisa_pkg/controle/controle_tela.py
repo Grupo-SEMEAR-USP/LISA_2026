@@ -19,6 +19,8 @@ Mantém a tela da LISA ligada rodando o gif standard.gif em loop.
 Pode ser requisitado para rodar outro gif (uma vez por requisição).
 Só pode atender uma requisição a cada 5 segundos, pois isso evita de tocar um gif enquanto outro já está sendo executado.
 Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até outra requisição ser feita (modo soneca).
+Publica no tópico /controle/gif_finalizado o último gif que teve sua reprodução finalizada, para que os outros nós tenham 
+conhecimento se o gif que eles solicitaram já finalizou.
 
     Servidor no serviço: /controle/controle_tela_service
         - Tipo da mensagem: lisa_interfaces/srv/ControleTela
@@ -27,6 +29,9 @@ Se nenhum gif for requisitado por 3 minutos, roda o gif sleeping em loop até ou
 
     Tópico inscrito: /controle/estado_atual
         - Tipo da mensagem: std_msgs/msg/String
+
+    Tópico publicado: /controle/gif_finalizado
+        - Tipo da mensagem: std_msgs/msg/String 
 
 '''
 
@@ -51,6 +56,11 @@ class ControleTelaNode(Node):
         self.srv_ = self.create_service(ControleTela, '/controle/controle_tela_service', self.controle_tela_callback) 
 
         self.estado_atual_subscription_ = self.create_subscription(String, "controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
+
+        self.current_gif_name_ = None
+
+        # Publica o nome do último GIF finalizado.
+        self.gif_finalizado_publisher_ = self.create_publisher(String, "/controle/gif_finalizado", 10)
 
         if not self.start_background_gif_loop():
             self.get_logger().error("Erro durante a inicialização do gif de fundo (background)")
@@ -144,6 +154,9 @@ class ControleTelaNode(Node):
 
         command = ['mpv', '--cursor-autohide=always', '--fullscreen=yes', '--loop-file=no', '--correct-pts=no', '--ontop=yes', gif_path]
         self.request_gif_process_ = subprocess.Popen(command, env=self.env_, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        self.current_gif_name_ = gif_name.removesuffix(".gif")
+        
         self.get_logger().info(f'Gif {gif_name} iniciado.')
 
         return True
@@ -227,8 +240,14 @@ class ControleTelaNode(Node):
         if self.request_gif_process_.poll() is None:
             return
 
-        self.get_logger().info("Gif finalizado.")
+        self.get_logger().info(f"Gif '{self.current_gif_name_}' finalizado.")
 
+        # Publica o nome do GIF que terminou.
+        msg = String()
+        msg.data = self.current_gif_name_
+        self.gif_finalizado_publisher_.publish(msg)
+
+        self.current_gif_name_ = None
         self.request_gif_process_ = None
 
         if self.pending_state_ is not None:

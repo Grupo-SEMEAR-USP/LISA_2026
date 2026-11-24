@@ -34,14 +34,12 @@ class ModoLisaEnsinaNode(ModoBaseNode):
         self.nome_gif_educativo = "educativo" + str(self.nro_gif) # escolhe aleatoriamente 1 entre os 3 gifs educativos disponíveis
         self.tempo_gif = self.duracao_gifs[self.nome_gif_educativo]
         # Gif transição para o modo educativo
-        self.send_tela_request("modoeducativo")
-        self.wait(3.1, self.play_gif_educativo) #espera o fim do gif
+        self.solicitar_gif("modoeducativo", self.play_gif_educativo) #espera o fim do gif
 
 
     def play_gif_educativo(self):        
         # Gif educativo
-        self.send_tela_request(self.nome_gif_educativo)
-        self.wait(self.tempo_gif, self.return_to_menu) #espera fim do gif educativo e volta para o menu
+        self.solicitar_gif(self.nome_gif_educativo, self.return_to_menu) #espera fim do gif educativo e volta para o menu
 
 
 def main(args=None):

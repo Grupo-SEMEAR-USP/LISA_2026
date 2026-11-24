@@ -19,8 +19,7 @@ class ModoTropeloNode(ModoBaseNode):
 
     def on_ativar(self):
         # Apenas executa o gif e já volta pro menu
-        self.send_tela_request("tropelo")
-        self.wait(2, self.return_to_menu)
+        self.solicitar_gif("tropelo", self.return_to_menu)
 
 
 def main(args=None):

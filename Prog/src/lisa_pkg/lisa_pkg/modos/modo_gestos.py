@@ -34,10 +34,11 @@ class ModoGestosNode(ModoBaseNode):
             "call" : "party",
             "middle_finger" : "angry"
         }
+        self.pronto_para_interagir = False
 
 
     def hand_gestures_subscription_callback(self, msg):
-        if not self.ativo:
+        if not self.ativo or not self.pronto_para_interagir:
             return
         else:
             hand_gesture = msg.data
@@ -51,9 +52,14 @@ class ModoGestosNode(ModoBaseNode):
 
 
     def on_ativar(self):
-        self.send_tela_request("gestos")
-        self.wait(3) # espera fim do gif antes de iniciar modo   
+        self.pronto_para_interagir = False
+        self.solicitar_gif("gestos", self.iniciar_modo)
 
+    def iniciar_modo(self):
+        """Executado após a finalização do GIF de entrada."""
+        if not self.ativo:
+            return
+        self.pronto_para_interagir = True
 
 def main(args=None):
     rclpy.init(args=args)

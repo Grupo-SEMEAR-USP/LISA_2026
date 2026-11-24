@@ -20,9 +20,8 @@ class ModoAuraNode(ModoBaseNode):
 
 
     def on_ativar(self):
-        self.send_tela_request("67")
         # espera o fim do gif e volta para o menu
-        self.wait(6, self.return_to_menu) 
+        self.solicitar_gif("67", self.return_to_menu) 
 
 
 def main(args=None):

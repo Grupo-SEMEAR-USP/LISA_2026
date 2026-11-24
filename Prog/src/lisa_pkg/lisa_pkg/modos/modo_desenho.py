@@ -226,11 +226,10 @@ class ModoDesenhoNode(ModoBaseNode):
         self.current_pointer = None
         self.limpar_desenho()
 
-        self.send_tela_request('desenho')
-        self.wait(2.5)
+        self.solicitar_gif("desenho", self.iniciar_modo)
 
 
-    def after_wait(self):
+    def iniciar_modo(self):
         self.current_gesture = None
         self.last_gesture = None
         self.limpar_desenho()
