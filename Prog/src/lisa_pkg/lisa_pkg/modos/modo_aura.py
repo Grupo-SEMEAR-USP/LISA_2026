@@ -16,12 +16,12 @@ Easter egg da lisa
 class ModoAuraNode(ModoBaseNode):
 
     def __init__(self):
-        super().__init__("modo_aura")
+        super().__init__("modo_aura", gif_inicializacao="67")
 
 
-    def on_ativar(self):
-        # espera o fim do gif e volta para o menu
-        self.solicitar_gif("67", self.return_to_menu) 
+    def on_ativacao_concluida(self):
+        # Espera o fim do GIF e volta ao menu.
+        self.return_to_menu()
 
 
 def main(args=None):

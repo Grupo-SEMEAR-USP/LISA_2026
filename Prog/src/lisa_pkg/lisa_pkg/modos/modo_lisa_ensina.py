@@ -17,29 +17,20 @@ Gif 3: reciclar
 
 class ModoLisaEnsinaNode(ModoBaseNode):
     def __init__(self):
-        super().__init__("modo_lisa_ensina")
-        self.duracao_gifs = {
-            "educativo1" : 28,
-            "educativo2" : 31,
-            "educativo3" : 31
-        }
-        self.nro_gif = 0
+        super().__init__("modo_lisa_ensina", gif_inicializacao="modoeducativo")
+        self.gifs_educativos = ["educativo1", "educativo2", "educativo3"]
         self.nome_gif_educativo = ""
-        self.tempo_gif = 0
 
 
     def on_ativar(self):
         # decide qual gif será tocado
-        self.nro_gif = random.randint(1,3)
-        self.nome_gif_educativo = "educativo" + str(self.nro_gif) # escolhe aleatoriamente 1 entre os 3 gifs educativos disponíveis
-        self.tempo_gif = self.duracao_gifs[self.nome_gif_educativo]
-        # Gif transição para o modo educativo
-        self.solicitar_gif("modoeducativo", self.play_gif_educativo) #espera o fim do gif
+        # escolhe aleatoriamente 1 entre os 3 gifs educativos disponíveis
+        self.nome_gif_educativo = random.choice(self.gifs_educativos)
 
 
-    def play_gif_educativo(self):        
-        # Gif educativo
-        self.solicitar_gif(self.nome_gif_educativo, self.return_to_menu) #espera fim do gif educativo e volta para o menu
+    def on_ativacao_concluida(self):
+        # Executa o GIF educativo e volta ao menu quando terminar.
+        self.gerenciador_gif.solicitar_gif(self.nome_gif_educativo,self.return_to_menu)
 
 
 def main(args=None):

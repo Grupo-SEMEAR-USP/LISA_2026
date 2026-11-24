@@ -32,7 +32,7 @@ Junta as informações para permitir desenho na tela utilizando OpenCV.
 class ModoDesenhoNode(ModoBaseNode):
 
     def __init__(self):
-        super().__init__("modo_desenho")
+        super().__init__("modo_desenho", gif_inicializacao="desenho")
 
         self.declare_parameter("display_width", 800)
         self.declare_parameter("display_height", 480)
@@ -218,18 +218,15 @@ class ModoDesenhoNode(ModoBaseNode):
 
 
     def on_ativar(self):
-        self.pronto_para_desenhar = False
-
         # Limpa possíveis dados recebidos antes da ativação.
+        self.pronto_para_desenhar = False
         self.current_gesture = None
         self.last_gesture = None
         self.current_pointer = None
         self.limpar_desenho()
 
-        self.solicitar_gif("desenho", self.iniciar_modo)
 
-
-    def iniciar_modo(self):
+    def on_ativacao_concluida(self):
         self.current_gesture = None
         self.last_gesture = None
         self.limpar_desenho()

@@ -20,7 +20,7 @@ Recebe resultados dos nó de detecção de gestos e dispara requisições de gif
 class ModoGestosNode(ModoBaseNode):
 
     def __init__(self):
-        super().__init__("modo_gestos")
+        super().__init__("modo_gestos", gif_inicializacao="gestos")
         self.subscriber_ = self.create_subscription(String, "visao/gestos", self.hand_gestures_subscription_callback, qos_camera)
         # mapa (dicionário) que associa um gesto a um gif
         self.hand_gesture_request_map_ = {
@@ -34,11 +34,10 @@ class ModoGestosNode(ModoBaseNode):
             "call" : "party",
             "middle_finger" : "angry"
         }
-        self.pronto_para_interagir = False
 
 
     def hand_gestures_subscription_callback(self, msg):
-        if not self.ativo or not self.pronto_para_interagir:
+        if not self.ativo or not self.pronto_para_executar:
             return
         else:
             hand_gesture = msg.data
@@ -50,16 +49,6 @@ class ModoGestosNode(ModoBaseNode):
                 gif_desejado = self.hand_gesture_request_map_[hand_gesture]  # busca o gif associado ao gesto no mapa
                 self.send_tela_request(gif_desejado)
 
-
-    def on_ativar(self):
-        self.pronto_para_interagir = False
-        self.solicitar_gif("gestos", self.iniciar_modo)
-
-    def iniciar_modo(self):
-        """Executado após a finalização do GIF de entrada."""
-        if not self.ativo:
-            return
-        self.pronto_para_interagir = True
 
 def main(args=None):
     rclpy.init(args=args)

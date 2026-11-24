@@ -15,11 +15,11 @@ Easter egg da lisa
 class ModoTropeloNode(ModoBaseNode):
 
     def __init__(self):
-        super().__init__("modo_tropelo")
+        super().__init__("modo_tropelo", gif_inicializacao="tropelo")
 
-    def on_ativar(self):
-        # Apenas executa o gif e já volta pro menu
-        self.solicitar_gif("tropelo", self.return_to_menu)
+    def on_ativacao_concluida(self):
+        # Apenas executa o GIF e já volta para o menu.
+        self.return_to_menu()
 
 
 def main(args=None):

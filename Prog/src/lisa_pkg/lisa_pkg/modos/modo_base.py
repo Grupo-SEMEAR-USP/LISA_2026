@@ -4,6 +4,7 @@ from std_msgs.msg import String
 from lisa_interfaces.srv import ControleEstados
 from lisa_interfaces.srv import ControleTela
 from lisa_pkg.controle.qos_estado_atual import qos_estado
+from lisa_pkg.modos.gerenciadores.gerenciador_gif import GerenciadorGif
 
 from rclpy.node import Node
 
@@ -32,7 +33,7 @@ MODO BASE, DO QUAL TODOS OS MODOS HERDAM FUNÇÕES BÁSICAS, CLIENTS DE TELA E E
 
 class ModoBaseNode(Node):
 
-    def __init__(self, nome_modo : str):
+    def __init__(self, nome_modo : str, gif_inicializacao: str | None = None):
         self.nome_modo = nome_modo
 
         super().__init__(self.nome_modo)
@@ -49,16 +50,16 @@ class ModoBaseNode(Node):
 
         # inscrição no tópico do estado_atual
         self.estado_atual_subscription_ = self.create_subscription(String, "/controle/estado_atual", self.estado_atual_sub_callback, qos_estado)
+
+        # Controle de ativação do modo.
         self.ativo = False
+        self.pronto_para_executar = False
 
-        # Inscrição no tópico de finalização de GIFs.
-        self.gif_finalizado_subscription_ = self.create_subscription(String, "/controle/gif_finalizado", self.gif_finalizado_sub_callback, 10)
+        # GIF de inicialização.
+        self.gif_inicializacao = gif_inicializacao
 
-        # Controle de solicitações de GIF.
-        self._gif_request_id = 0
-        self._gif_pending = None
-        self._gif_retry_timer = None
-        self._gif_timeout_timer = None
+        # Gerenciador de GIFs.
+        self.gerenciador_gif = GerenciadorGif(self,self.tela_client_)
 
         # controle de esperas (wait())
         self._wait_timers = set()
@@ -71,6 +72,9 @@ class ModoBaseNode(Node):
         """Comportamento executado ao ativar o modo."""
         pass
 
+    def on_ativacao_concluida(self):
+        """Comportamento executado após o GIF de inicialização terminar."""
+        pass
 
     def on_desativar(self):
         """Limpeza e cancelamento de tarefas ao desativar o modo."""
@@ -87,13 +91,43 @@ class ModoBaseNode(Node):
                 self.desativar()
 
 
+    def ativar(self):
+        ''' 
+            Faz (self.ativo = true), exibe mensagem de modo ativado e executa self.on_ativar().
+            Também executa o gif_inicializacao, se houver, e por fim executa on_ativacao_concluida()
+        '''
+        if self.ativo:
+            return
+        
+        self.ativo = True
+        self.get_logger().info(f"## {self.nome_modo.upper()} ATIVADO ##")
+
+        # Executa a preparação inicial do modo.
+        self.on_ativar()
+
+        # Se não houver GIF de inicialização, libera o modo imediatamente.
+        if self.gif_inicializacao is None:
+            self._liberar_modo()
+        else:
+            self.gerenciador_gif.solicitar_gif(self.gif_inicializacao,self._liberar_modo)
+
+
+    def _liberar_modo(self):
+        """Libera a execução do modo após a inicialização."""
+        if not self.ativo:
+            return
+        self.pronto_para_executar = True
+        self.on_ativacao_concluida()
+
+
     def desativar(self):
         ''' Faz (self.ativo = false), cancela esperas, exibe mensagem de modo desativado e executa self.on_desativar(). '''
         if not self.ativo:
             return
 
         self.ativo = False
-        self._cancelar_solicitacao_gif()
+        self.pronto_para_executar = False
+        self.gerenciador_gif.cancelar()
 
         for timer in tuple(self._wait_timers):
             timer.cancel()
@@ -101,21 +135,9 @@ class ModoBaseNode(Node):
 
         self._wait_timers.clear()
 
-        self.get_logger().info(
-            f"## {self.nome_modo.upper()} DESATIVADO ##"
-        )
+        self.get_logger().info(f"## {self.nome_modo.upper()} DESATIVADO ##")
 
         self.on_desativar()
-
-
-    def ativar(self):
-        ''' Faz (self.ativo = true), exibe mensagem de modo ativado e executa self.on_ativar().'''
-        if self.ativo:
-            return
-        
-        self.ativo = True
-        self.get_logger().info(f"## {self.nome_modo.upper()} ATIVADO ##")
-        self.on_ativar()
 
 
     def wait(self, seconds: float, callback: Callable[[], None] | None = None):
@@ -187,164 +209,10 @@ class ModoBaseNode(Node):
         return self.tela_client_.call_async(request)
 
 
-    def solicitar_gif(self, gif_desejado: str, callback: Callable[[], None] | None = None, intervalo: float = 0.5, timeout: float = 20.0):
-        """
-        Solicita um GIF e aguarda sua finalização.
-
-        Se o serviço retornar sucesso=False, tenta novamente
-        após o intervalo definido.
-
-        Quando o GIF terminar, executa o callback.
-
-        A operação é cancelada automaticamente ao desativar o modo.
-        """
-
-        if not self.ativo:
-            return
-
-        gif_desejado = gif_desejado.removesuffix(".gif")
-
-        if intervalo <= 0 or timeout <= 0:
-            raise ValueError("Intervalo e timeout devem ser positivos.")
-
-        if callback is not None and not callable(callback):
-            raise TypeError("callback deve ser uma função chamável.")
-
-        # Cancela uma solicitação anterior, caso exista.
-        self._cancelar_solicitacao_gif()
-        self._gif_request_id += 1
-        request_id = self._gif_request_id
-
-        self._gif_pending = {
-            "id": request_id,
-            "gif": gif_desejado,
-            "callback": callback,
-            "intervalo": intervalo,
-            "aguardando_finalizacao": False
-        }
-
-        self.get_logger().info(f"Solicitando GIF '{gif_desejado}'.")
-        # Define um limite para não esperar indefinidamente.
-        self._gif_timeout_timer = self.wait(timeout,lambda: self._gif_timeout_callback(request_id))
-        # Primeira tentativa.
-        self._tentar_solicitar_gif(request_id)
-
-
-    def _tentar_solicitar_gif(self, request_id: int):
-        """Envia uma tentativa de solicitação ao serviço."""
-        pending = self._gif_pending
-        if not self.ativo or pending is None:
-            return
-        if pending["id"] != request_id:
-            return
-
-        self._gif_retry_timer = None
-        future = self.send_tela_request(pending["gif"])
-        future.add_done_callback(lambda future: self._gif_service_callback(future, request_id))
-
-
-    def _gif_service_callback(self, future, request_id: int):
-        """Processa a resposta do serviço de controle de tela."""
-        pending = self._gif_pending
-        if not self.ativo or pending is None:
-            return
-        if pending["id"] != request_id:
-            return
-
-        try:
-            response = future.result()
-        except Exception as e:
-            self.get_logger().error(
-                f"Erro ao solicitar GIF '{pending['gif']}': {e}"
-            )
-            self._agendar_nova_tentativa(request_id)
-            return
-
-        if not response.sucesso:
-            self.get_logger().info(
-                f"GIF '{pending['gif']}' ainda não pode ser executado. "
-                f"Nova tentativa em {pending['intervalo']}s."
-            )
-
-            self._agendar_nova_tentativa(request_id)
-            return
-
-        # O serviço aceitou a solicitação.
-        # Agora aguardamos o tópico informar que o GIF terminou.
-        pending["aguardando_finalizacao"] = True
-
-        self.get_logger().info(
-            f"GIF '{pending['gif']}' iniciado. "
-            f"Aguardando finalização."
-        )
-
-
-    def _agendar_nova_tentativa(self, request_id: int):
-        """Agenda outra tentativa sem bloquear o executor."""
-        pending = self._gif_pending
-        if not self.ativo or pending is None:
-            return
-        if pending["id"] != request_id:
-            return
-        self._gif_retry_timer = self.wait(pending["intervalo"],lambda: self._tentar_solicitar_gif(request_id))
-
-
-    def gif_finalizado_sub_callback(self, msg: String):
-        """Recebe notificações de GIFs finalizados."""
-
-        pending = self._gif_pending
-
-        if not self.ativo or pending is None:
-            return
-
-        # Ignora notificações de outros GIFs.
-        if not pending["aguardando_finalizacao"]:
-            return
-
-        if msg.data != pending["gif"]:
-            return
-
-        self.get_logger().info(
-            f"GIF '{msg.data}' finalizado. "
-            f"Continuando execução do modo."
-        )
-
-        callback = pending["callback"]
-
-        # Limpa a solicitação antes de executar o callback.
-        self._cancelar_solicitacao_gif()
-
-        if self.ativo and callback is not None:
-            callback()
-
-
-    def _gif_timeout_callback(self, request_id: int):
-        """Encerra a solicitação caso o GIF demore demais."""
-        pending = self._gif_pending
-        if pending is None or pending["id"] != request_id:
-            return
-        self._gif_timeout_timer = None
-        self.get_logger().error(
-            f"Timeout aguardando o GIF '{pending['gif']}'. "
-            f"Cancelando solicitação."
-        )
-        self._cancelar_solicitacao_gif()
-
-
-    def _cancelar_solicitacao_gif(self):
-        """Cancela tentativas, timeout e espera de finalização."""
-        self._gif_request_id += 1
-        self._gif_pending = None
-
-        for timer in (self._gif_retry_timer, self._gif_timeout_timer):
-            if timer is not None and timer in self._wait_timers:
-                timer.cancel()
-                self._wait_timers.discard(timer)
-                self.destroy_timer(timer)
-
-        self._gif_retry_timer = None
-        self._gif_timeout_timer = None
-
-
     def return_to_menu(self):
         self.send_controle_estados_request("MENU")
+
+
+    def destroy_node(self):
+        self.gerenciador_gif.destroy()
+        super().destroy_node()
