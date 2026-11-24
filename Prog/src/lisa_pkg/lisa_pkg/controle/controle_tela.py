@@ -225,10 +225,9 @@ class ControleTelaNode(Node):
 
 
     def can_play_gif(self):
+        # Enquanto houver um processo registrado, aguardamos check_animation() detectar sua finalização.
         if self.request_gif_process_ is not None:
-            if self.request_gif_process_.poll() is None:
-                return False
-            self.request_gif_process_ = None
+            return False
 
         return (time.time() - self.last_request_time_) > self.request_cooldown_
 
